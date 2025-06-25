@@ -469,9 +469,11 @@
 						<configuration>
 							<classesDirectory>${project.build.outputDirectory}</classesDirectory>
 							<includes>
-								<include>net/runelite/client/plugins/microbot/example/**</include>
+								<!-- Change this path to your plugin -->
+								<include>net/runelite/client/plugins/microbot/MKE/wintertodt/**</include>
 							</includes>
-							<finalName>example</finalName>
+							<!-- Change the final name to your plugin -->
+							<finalName>MKE-Wintertodt-Plugin-1.0</finalName>
 							<archive>
 								<manifest>
 									<addClasspath>true</addClasspath>
