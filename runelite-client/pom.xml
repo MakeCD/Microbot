@@ -485,6 +485,37 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.2.0</version>
+				<executions>
+					<execution>
+						<id>build-plugin-jar</id>
+						<phase>package</phase>
+						<goals>
+							<goal>jar</goal>
+						</goals>
+						<configuration>
+							<classesDirectory>${project.build.outputDirectory}</classesDirectory>
+							<includes>
+								<!-- Change this path to your plugin -->
+								<include>net/runelite/client/plugins/microbot/MKE/wintertodt/**</include>
+							</includes>
+							<!-- Change the final name to your plugin -->
+							<finalName>MKE-Wintertodt-Plugin-1.0</finalName>
+							<archive>
+								<manifest>
+									<addClasspath>true</addClasspath>
+									<classpathPrefix>lib/</classpathPrefix>
+									<mainClass>net.runelite.client.RuneLite</mainClass>
+								</manifest>
+							</archive>
+							<classifier>plugin</classifier>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jarsigner-plugin</artifactId>
 				<version>1.4</version>
 				<executions>

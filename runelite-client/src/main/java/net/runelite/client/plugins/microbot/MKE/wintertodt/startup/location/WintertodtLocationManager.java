@@ -40,7 +40,7 @@ public class WintertodtLocationManager {
     private static final WorldPoint WINTERTODT_BOSS_ROOM = new WorldPoint(1630, 3982, 0);
     
     // Distance thresholds
-    private static final int WINTERTODT_AREA_RADIUS = 15;
+    private static final int WINTERTODT_AREA_RADIUS = 25;
     private static final int BANK_PROXIMITY_RADIUS = 3;
     private static final int FAR_FROM_BANK_THRESHOLD = 100;
     
@@ -225,7 +225,7 @@ public class WintertodtLocationManager {
 
             if (walkToWintertodtBank) {
                 Rs2Walker.walkTo(WINTERTODT_BANK, BANK_PROXIMITY_RADIUS);
-                if (sleepUntilTrue(this::isAtWintertodt, 1000, 180000)) { // 3 minutes for walking
+                if (sleepUntilTrue(this::isAtWintertodt, 1000, 180000)) { // 3 minute for walking
                     currentState = NavigationState.COMPLETED;
                     statusMessage = "Successfully walked to Wintertodt";
                     Microbot.log("Successfully walked to Wintertodt");
@@ -244,7 +244,7 @@ public class WintertodtLocationManager {
                 // Let webwalker handle the teleport automatically
                 Rs2Walker.walkTo(WINTERTODT_BANK, BANK_PROXIMITY_RADIUS);
                 
-                if (sleepUntilTrue(this::isAtWintertodt, 1000, 60000)) { // 1 minute for teleport
+                if (sleepUntilTrue(this::isAtWintertodt, 1000, 20000)) { // 20 seconds for teleport
                     currentState = NavigationState.COMPLETED;
                     statusMessage = "Successfully teleported to Wintertodt";
                     Microbot.log("Successfully teleported to Wintertodt");
@@ -268,7 +268,7 @@ public class WintertodtLocationManager {
             Rs2Walker.walkTo(WINTERTODT_BANK, BANK_PROXIMITY_RADIUS);
             
             // Wait for arrival with generous timeout for long routes
-            if (sleepUntilTrue(this::isAtWintertodt, 1000, 300000)) { // 5 minutes timeout
+            if (sleepUntilTrue(this::isAtWintertodt, 1000, 240000)) { // 4 minute timeout
                 currentState = NavigationState.COMPLETED;
                 statusMessage = "Successfully navigated to Wintertodt";
                 Microbot.log("Successfully navigated to Wintertodt using webwalker");
