@@ -7,6 +7,9 @@ import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.math.Rs2Random;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.State;
+import net.runelite.client.plugins.microbot.util.security.Login;
+import net.runelite.client.plugins.microbot.accountselector.AutoLoginPlugin;
+import net.runelite.client.ui.ClientUI;
 
 import java.awt.Point;
 import java.time.Duration;
@@ -40,6 +43,9 @@ public class WintertodtBreakManager {
     // Break timing
     private long lastBreakTime = 0;
     private long nextBreakCheck = 0;
+    
+    // Title management
+    private String originalTitle = "";
     
     @Getter
     private long waitingForSafeSpotSince = 0; // Track when we started waiting for safe spot
@@ -75,6 +81,12 @@ public class WintertodtBreakManager {
     
     public WintertodtBreakManager(MKE_WintertodtConfig config) {
         this.config = config;
+        // Store original window title
+        try {
+            originalTitle = ClientUI.getFrame().getTitle();
+        } catch (Exception e) {
+            originalTitle = "RuneLite";
+        }
         initializeBreakTimer();
     }
     
@@ -117,6 +129,14 @@ public class WintertodtBreakManager {
                 // Countdown active break
                 if (breakTimeRemaining > 0 && breakActive) {
                     breakTimeRemaining--;
+                    
+                    // Update window title with countdown
+                    updateTitle();
+                    
+                    // Log countdown for logout breaks (every 30 seconds to avoid spam)
+                    if (logoutBreakActive && breakTimeRemaining % 30 == 0) {
+                        Microbot.log("Logout break countdown: " + (breakTimeRemaining / 60) + " minutes remaining");
+                    }
                 }
                 
                 // Time to start a break
@@ -133,9 +153,9 @@ public class WintertodtBreakManager {
                             Microbot.log("Started waiting for safe location for break");
                         }
                         
-                        // Check if we've been waiting too long (10 minutes)
+                        // Check if we've been waiting too long (10 minutes) or if less than 3 minutes left and state is waiting
                         long waitingTime = currentTime - waitingForSafeSpotSince;
-                        if (waitingTime >= MAX_WAIT_FOR_SAFE_SPOT_MS) {
+                        if (waitingTime >= MAX_WAIT_FOR_SAFE_SPOT_MS || (waitingTime >= MAX_WAIT_FOR_SAFE_SPOT_MS - 180000 && MKE_WintertodtScript.state == State.WAITING)) {
                             if (!isWalkingToSafeSpot) {
                                 Microbot.log("Waiting for safe spot timed out, requesting walk to boss room safe area");
                                 isWalkingToSafeSpot = true;
@@ -160,6 +180,9 @@ public class WintertodtBreakManager {
                 
                 // Time to end a break
                 if (breakTimeRemaining <= 0 && breakActive) {
+                    if (logoutBreakActive) {
+                        Microbot.log("Logout break timer reached zero - ending break now");
+                    }
                     endCurrentBreak();
                 }
             }
@@ -205,6 +228,9 @@ public class WintertodtBreakManager {
         
         lastBreakTime = System.currentTimeMillis();
         
+        // Update window title to show break status
+        updateTitle();
+        
         Microbot.log(String.format("Started AFK break for %d minutes", duration));
     }
     
@@ -222,6 +248,9 @@ public class WintertodtBreakManager {
         Rs2Player.logout();
         
         lastBreakTime = System.currentTimeMillis();
+        
+        // Update window title to show break status
+        updateTitle();
         
         Microbot.log(String.format("Started logout break for %d minutes", duration));
     }
@@ -259,7 +288,13 @@ public class WintertodtBreakManager {
             originalMousePosition = null;
         }
         
-        Microbot.log("AFK break ended - resuming activities");
+        // Restore window title
+        updateTitle();
+        
+        // Reset action plan since game state may have changed during break
+        MKE_WintertodtScript.resetActionPlanning();
+        
+        Microbot.log("AFK break ended - action plan reset, resuming activities");
     }
     
     /**
@@ -269,8 +304,202 @@ public class WintertodtBreakManager {
         logoutBreakActive = false;
         breakActive = false;
         
-        Microbot.log("Logout break ended - ready to resume");
-        // Note: The script will handle re-login logic
+        // Restore window title
+        updateTitle();
+        
+        // Reset action plan since inventory was cleared during logout
+        MKE_WintertodtScript.resetActionPlanning();
+        
+        Microbot.log("Logout break ended - action plan reset, attempting to log back in");
+        
+        // Attempt to log back in
+        attemptLogin();
+    }
+    
+    /**
+     * Attempts to log the player back in after a logout break
+     */
+    private void attemptLogin() {
+        try {
+            // Check if player is already logged in
+            if (Microbot.isLoggedIn()) {
+                Microbot.log("Player already logged in");
+                return;
+            }
+            
+            Microbot.log("Attempting to log back in after logout break...");
+            
+            // Try to use AutoLoginPlugin first if it's available and enabled
+            if (isAutoLoginPluginAvailable()) {
+                Microbot.log("AutoLoginPlugin is available - using automatic login");
+                enableAutoLoginPlugin();
+                
+                // Wait for login to complete (up to 60 seconds)
+                long loginStart = System.currentTimeMillis();
+                while (!Microbot.isLoggedIn() && System.currentTimeMillis() - loginStart < 60000) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                
+                if (Microbot.isLoggedIn()) {
+                    Microbot.log("Successfully logged in using AutoLoginPlugin");
+                    onSuccessfulLogin();
+                    return;
+                }
+            }
+            
+            // Fallback to manual login using the Login class
+            Microbot.log("Attempting manual login...");
+            
+            try {
+                // Check if we have an active profile configured
+                if (Login.activeProfile != null) {
+                    // Use a some of the Wintertodt worlds (307, 309, 311, 389)
+                    int[] wintertodtWorlds = {307, 309, 311, 389};
+                    int world = wintertodtWorlds[Rs2Random.between(0, wintertodtWorlds.length - 1)];
+
+                    new Login(world);
+                    
+                    // Wait for login to complete (up to 30 seconds)
+                    long loginStart = System.currentTimeMillis();
+                    while (!Microbot.isLoggedIn() && System.currentTimeMillis() - loginStart < 30000) {
+                        try {
+                            Thread.sleep(1000);
+                        } catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
+                            break;
+                        }
+                    }
+                    
+                    if (Microbot.isLoggedIn()) {
+                        Microbot.log("Successfully logged in using manual login");
+                        onSuccessfulLogin();
+                    } else {
+                        Microbot.log("Login attempt timed out - player may need to log in manually");
+                    }
+                } else {
+                    Microbot.log("No active profile configured for automatic login");
+                    Microbot.log("Player will need to log in manually to resume script");
+                }
+            } catch (Exception loginEx) {
+                Microbot.log("Manual login failed: " + loginEx.getMessage());
+                Microbot.log("Player will need to log in manually to resume script");
+            }
+            
+        } catch (Exception e) {
+            Microbot.log("Error during login attempt: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+    
+    /**
+     * Checks if the AutoLoginPlugin is available and can be used
+     */
+    private boolean isAutoLoginPluginAvailable() {
+        try {
+            return Microbot.getPlugin(AutoLoginPlugin.class.getName()) != null;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+    
+    /**
+     * Enables the AutoLoginPlugin if available
+     */
+    private void enableAutoLoginPlugin() {
+        try {
+            AutoLoginPlugin autoLoginPlugin = (AutoLoginPlugin) Microbot.getPlugin(AutoLoginPlugin.class.getName());
+            if (autoLoginPlugin != null && !Microbot.isPluginEnabled(autoLoginPlugin.getClass())) {
+                Microbot.getClientThread().runOnSeperateThread(() -> {
+                    Microbot.startPlugin(autoLoginPlugin);
+                    return true;
+                });
+                Microbot.log("AutoLoginPlugin enabled for break login");
+            }
+        } catch (Exception e) {
+            Microbot.log("Failed to enable AutoLoginPlugin: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Handles successful login after a logout break
+     */
+    private void onSuccessfulLogin() {
+        try {
+            // Small delay to ensure login is fully processed
+            Thread.sleep(10000);
+            
+            Microbot.log("Login successful - checking if we're on a Wintertodt world");
+            
+            Microbot.log("Break system resuming normal operation");
+            
+            // Disable AutoLogin plugin if we enabled it specifically for the break
+            if (isAutoLoginPluginAvailable()) {
+                Microbot.getClientThread().runOnSeperateThread(() -> {
+                    Microbot.stopPlugin(Microbot.getPlugin(AutoLoginPlugin.class.getName()));
+                    return true;
+                });
+            }
+
+            // Ensure we're on a Wintertodt world after login
+            ensureWintertodtWorldAfterLogin();
+            
+        } catch (Exception e) {
+            Microbot.log("Error during post-login cleanup: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Ensures we're on a Wintertodt world after login, hops if necessary
+     */
+    private void ensureWintertodtWorldAfterLogin() {
+        try {
+            // Wintertodt worlds
+            int[] wintertodtWorlds = {307, 309, 311, 389};
+            int currentWorld = Rs2Player.getWorld();
+            
+            // Check if we're already on a Wintertodt world
+            for (int world : wintertodtWorlds) {
+                if (currentWorld == world) {
+                    Microbot.log("Already on Wintertodt world " + currentWorld + " after login");
+                    return;
+                }
+            }
+            
+            // Not on a Wintertodt world, hop to one
+            Microbot.log("Not on Wintertodt world (current: " + currentWorld + ") - hopping after login...");
+            
+            int targetWorld = wintertodtWorlds[random.nextInt(wintertodtWorlds.length)];
+            boolean hopSuccessful = Microbot.hopToWorld(targetWorld);
+            
+            if (hopSuccessful) {
+                // Wait up to 15 seconds for hop to complete
+                long startTime = System.currentTimeMillis();
+                while (Rs2Player.getWorld() != targetWorld && System.currentTimeMillis() - startTime < 15000) {
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+                
+                if (Rs2Player.getWorld() == targetWorld) {
+                    Microbot.log("Successfully hopped to Wintertodt world " + targetWorld + " after login");
+                } else {
+                    Microbot.log("World hop timeout after login - continuing on world " + Rs2Player.getWorld());
+                }
+            } else {
+                Microbot.log("Failed to hop to Wintertodt world after login - continuing on world " + currentWorld);
+            }
+            
+        } catch (Exception e) {
+            Microbot.log("Error ensuring Wintertodt world after login: " + e.getMessage());
+        }
     }
     
     /**
@@ -282,6 +511,33 @@ public class WintertodtBreakManager {
         nextBreakIn = Rs2Random.between(minInterval * 60, maxInterval * 60);
         
         Microbot.log(String.format("Next break scheduled in %d minutes", nextBreakIn / 60));
+    }
+    
+    /**
+     * Updates the window title to show break status and remaining time
+     */
+    private void updateTitle() {
+        try {
+            if (!breakActive) {
+                // No break active - restore original title
+                ClientUI.getFrame().setTitle(originalTitle);
+                return;
+            }
+            
+            String breakType = afkBreakActive ? "AFK Break" : "Logout Break";
+            Duration duration = Duration.ofSeconds(breakTimeRemaining);
+            long hours = duration.toHours();
+            long minutes = duration.toMinutes() % 60;
+            long seconds = duration.getSeconds() % 60;
+            
+            String timeRemaining = String.format("%02d:%02d:%02d", hours, minutes, seconds);
+            String title = String.format("[%s - %s] %s", breakType, timeRemaining, originalTitle);
+            
+            ClientUI.getFrame().setTitle(title);
+            
+        } catch (Exception e) {
+            // Ignore title update errors
+        }
     }
     
     /**
@@ -336,6 +592,16 @@ public class WintertodtBreakManager {
         mouseOffscreen = false;
         originalMousePosition = null;
         breakTimeRemaining = 0;
+        
+        // Restore window title
+        updateTitle();
+        
+        // Reset action plan for safety
+        try {
+            MKE_WintertodtScript.resetActionPlanning();
+        } catch (Exception e) {
+            // Ignore if script not initialized
+        }
     }
     
     /**
@@ -390,8 +656,16 @@ public class WintertodtBreakManager {
             return;
         }
         
+        Microbot.log("Manually ending break - resetting action plan");
         breakTimeRemaining = 0;
         endCurrentBreak();
+    }
+    
+    /**
+     * Checks if we're currently in a logout break (player should be logged out)
+     */
+    public static boolean isLogoutBreakActive() {
+        return logoutBreakActive;
     }
     
     /**
@@ -401,6 +675,14 @@ public class WintertodtBreakManager {
         emergencyCleanup();
         waitingForSafeSpotSince = 0;
         isWalkingToSafeSpot = false;
+        
+        // Re-store the original title in case it changed
+        try {
+            originalTitle = ClientUI.getFrame().getTitle();
+        } catch (Exception e) {
+            originalTitle = "RuneLite";
+        }
+        
         initializeBreakTimer();
     }
     
@@ -412,6 +694,14 @@ public class WintertodtBreakManager {
         nextBreakIn = 0;
         waitingForSafeSpotSince = 0;
         isWalkingToSafeSpot = false;
+        
+        // Ensure title is restored on shutdown
+        try {
+            ClientUI.getFrame().setTitle(originalTitle);
+        } catch (Exception e) {
+            // Ignore title restoration errors during shutdown
+        }
+        
         Microbot.log("Break manager shutdown");
     }
 } 

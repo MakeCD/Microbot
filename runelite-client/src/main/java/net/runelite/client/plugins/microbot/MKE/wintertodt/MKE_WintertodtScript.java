@@ -79,11 +79,11 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
  * - Natural break activities and timing patterns
  * - Separate from Break Handler (for longer breaks)
  *
- * @version 1.0.0
+ * @version 1.0.1
  * @author MakeCD
  */
 public class MKE_WintertodtScript extends Script {
-    public static final String version = "1.0.0";
+    public static final String version = "1.0.1";
 
     // State management
     public static State state = State.BANKING;
@@ -115,6 +115,7 @@ public class MKE_WintertodtScript extends Script {
     private boolean startupCompleted = false;
     private Random random = new Random();
     private boolean wasOnBreak = false;
+    private boolean worldChecked = false; // Track if we've already checked/hopped to Wintertodt world
 
     // Wintertodt round timer tracking
     private long roundEndTime = -1;
@@ -138,7 +139,7 @@ public class MKE_WintertodtScript extends Script {
     private long currentRoundStartTime = 0;
 
     // Flag to prioritize brazier lighting at round start
-    private boolean shouldPriorizeBrazierAtStart = false;
+    private static boolean shouldPriorizeBrazierAtStart = false;
 
     // For overlay
     public static double historicalEstimateSecondsLeft = 0;
@@ -857,31 +858,41 @@ public class MKE_WintertodtScript extends Script {
         
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try {
+                // Update break manager BEFORE login check so logout breaks can end
+                if (breakManager != null && breakManager.update()) {
+                    if (Microbot.isLoggedIn()) {
+                        setLockState(state, false); // Force unlock current state
+                        changeState(State.WALKING_TO_SAFE_SPOT_FOR_BREAK);
+                    }
+                    return;
+                }
+
                 // Pre-execution checks
                 if (!Microbot.isLoggedIn()) {
-                    isInitialized = false;
-                    lastStateChange = System.currentTimeMillis(); // Reset on logout
-                    Microbot.log("Player logged out - reset initialization flag");
+                    // Only spam logs if we're not in an intentional logout break
+                    if (!WintertodtBreakManager.isLogoutBreakActive()) {
+                        isInitialized = false;
+                        lastStateChange = System.currentTimeMillis(); // Reset on logout
+                        Microbot.log("Player logged out - reset initialization flag");
+                    }
                     return;
                 }
 
                 if (!super.run()) return;
-
-                // Update break manager and handle breaks
-                if (breakManager != null && breakManager.update()) {
-                    setLockState(state, false); // Force unlock current state
-                    changeState(State.WALKING_TO_SAFE_SPOT_FOR_BREAK);
-                    return;
-                }
                 
                 if (shouldPauseForBreaks()) {
-                    wasOnBreak = true;
+                    if (!Rs2AntibanSettings.actionCooldownActive) {
+                        wasOnBreak = true;
+                    }
                     return; // Pause script if any break is active
                 }
 
                 if (wasOnBreak) {
                     lastStateChange = System.currentTimeMillis();
-                    Microbot.log("Resuming from break, resetting stuck state timer.");
+                    isInitialized = false; // Force re-initialization after any break
+                    worldChecked = false; // Reset world check after break (might be on different world)
+                    resetActionPlanning(); // Clear outdated action plans after break
+                    Microbot.log("Resuming from break, resetting state timer, initialization, world check, and action plan.");
                     wasOnBreak = false;
                 }
 
@@ -1034,6 +1045,9 @@ public class MKE_WintertodtScript extends Script {
         // Reset startup completion flag
         startupCompleted = false;
         
+        // Reset world checking flag
+        worldChecked = false;
+        
         Microbot.log("All script state variables reset to default values");
     }
 
@@ -1122,6 +1136,13 @@ public class MKE_WintertodtScript extends Script {
             lastStateChange = System.currentTimeMillis();
             Microbot.log("Script initialization - lastStateChange confirmed reset");
 
+            // Close bank if it's open at script start
+            if (Rs2Bank.isOpen()) {
+                Microbot.log("Bank is open at script start - closing it");
+                Rs2Bank.closeBank();
+                sleepUntilTrue(() -> !Rs2Bank.isOpen(), 100, 3000);
+            }
+
             // Initial state
             state = State.BANKING;
 
@@ -1156,12 +1177,12 @@ public class MKE_WintertodtScript extends Script {
             fixCameraPitchIfNeeded();
             fixCameraZoomIfNeeded();
 
+            resetActionPlanning();        // always start with a clean slate
+
             /* -------- Figure-out the correct starting state -------- */
             GameState gs = analyzeGameState();     // one cheap scan
             determineInitialState(gs);
             Microbot.log("Initial state decided: " + state);
-
-            resetActionPlanning();        // always start with a clean slate
 
             return true;
 
@@ -1856,6 +1877,11 @@ public class MKE_WintertodtScript extends Script {
                 return;                           // still inside → try again next tick
             }
 
+            // Check and hop to Wintertodt world if needed (safe location)
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Skip banking entirely if using rejuvenation potions
             if (usesPotions) {
                 Microbot.log("Using rejuvenation potions - redirecting to potion creation instead of banking");
@@ -1909,6 +1935,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleEnterRoomState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before entering room
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Navigate to boss room
             if (!gameState.wintertodtRespawning && !gameState.isWintertodtAlive) {
                 if (Rs2Player.getWorldLocation().distanceTo(BOSS_ROOM) > 10) {
@@ -1935,6 +1966,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleWaitingState(GameState gameState) {
         try {
+            // Check and hop to Wintertodt world if needed (safe location inside Wintertodt)
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Execute spam clicking if in the appropriate time window (this runs during countdown)
             executeSpamClicking(gameState);
 
@@ -1957,6 +1993,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleLightBrazierState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before lighting brazier
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Abort lighting if the round has ended while we were in this state
             if (!gameState.isWintertodtAlive || gameState.wintertodtHp == 0) {
                 setLockState(State.LIGHT_BRAZIER, false);
@@ -2006,6 +2047,11 @@ public class MKE_WintertodtScript extends Script {
     {
         try
         {
+            // Ensure we're on Wintertodt world before chopping
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // stop when plan met (root-count already added in onStatChanged)
             if (targetRootsForThisRun > 0
                 && (Rs2Inventory.count(ItemID.BRUMA_ROOT)
@@ -2059,6 +2105,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleFletchLogsState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before fletching
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Update fletching animation tracking
             updateFletchingAnimationTracking();
             
@@ -2216,6 +2267,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleBurnLogsState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before burning
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // Update feeding animation tracking
             updateFeedingAnimationTracking();
             
@@ -2316,6 +2372,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleGetConcoctionsState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before getting concoctions
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // If we're outside, enter the game room first
             if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 3) {
                 Rs2Walker.walkTo(CRATE_STAND_LOCATION, 3);
@@ -2384,6 +2445,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleGetHerbsState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before getting herbs
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // If we're outside, enter the game room first
             if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 3) {
                 Rs2Walker.walkTo(SPROUTING_ROOTS_STAND, 3);
@@ -2463,6 +2529,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleMakePotionsState(GameState gameState) {
         try {
+            // Ensure we're on Wintertodt world before making potions
+            if (!ensureWintertodtWorldSafely()) {
+                return; // Script stopped due to hop failure
+            }
+
             // ROCK SOLID COUNTING
             int currentPotions = getTotalRejuvenationPotions();
             int currentConcoctions = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
@@ -3335,6 +3406,224 @@ public class MKE_WintertodtScript extends Script {
     }
 
     /**
+     * Ensures the player is on a Wintertodt world, hopping if necessary.
+     * Only hops when in a safe location (not in combat, not interacting, etc.).
+     * Stops script and logs out on failure.
+     * 
+     * @return true if on Wintertodt world or successfully hopped, false if failed (script should stop)
+     */
+    private boolean ensureWintertodtWorldSafely() {
+        try {
+            // Skip if we've already checked and confirmed Wintertodt world this session
+            if (worldChecked) {
+                return true;
+            }
+            
+            // Wintertodt worlds (F2P and P2P)
+            int[] wintertodtWorlds = {307, 309, 311, 389};
+            int currentWorld = Rs2Player.getWorld();
+            
+            // Check if we're already on a Wintertodt world
+            for (int world : wintertodtWorlds) {
+                if (currentWorld == world) {
+                    Microbot.log("Already on Wintertodt world " + currentWorld + " - continuing");
+                    worldChecked = true; // Mark as checked
+                    return true;
+                }
+            }
+            
+            // Check if it's safe to hop worlds
+            if (!isSafeToHopWorlds()) {
+                Microbot.log("Not safe to hop worlds currently (combat/interaction) - will try again later");
+                return true; // Don't fail, just retry later
+            }
+            
+            // Not on a Wintertodt world, need to hop
+            Microbot.log("Not on a Wintertodt world (current: " + currentWorld + ") - hopping to a Wintertodt world...");
+            
+            boolean hopSuccess = hopToWintertodtWorldSafely(wintertodtWorlds);
+            
+            if (!hopSuccess) {
+                // Hop failed - stop script and logout
+                Microbot.log("CRITICAL: Failed to hop to Wintertodt world - stopping script and logging out");
+                stopScriptAndLogout();
+                return false;
+            }
+            
+            worldChecked = true; // Mark as checked after successful hop
+            return true;
+            
+        } catch (Exception e) {
+            Microbot.log("Error checking/hopping to Wintertodt world: " + e.getMessage());
+            e.printStackTrace();
+            // On error, stop script and logout
+            stopScriptAndLogout();
+            return false;
+        }
+    }
+    
+    /**
+     * Checks if it's safe to hop worlds (not in combat, not animating, not interacting).
+     * 
+     * @return true if safe to hop, false otherwise
+     */
+    private boolean isSafeToHopWorlds() {
+        try {
+            // Check if player is in combat
+            if (Rs2Player.isInCombat()) {
+                return false;
+            }
+            
+            // Check if player is interacting with something
+            if (Rs2Player.isInteracting()) {
+                return false;
+            }
+            
+            // Check if world hopper is already open or hopping in progress
+            if (Microbot.isHopping()) {
+                return false;
+            }
+            
+            return true;
+            
+        } catch (Exception e) {
+            Microbot.log("Error checking if safe to hop: " + e.getMessage());
+            return false; // Assume not safe on error
+        }
+    }
+    
+    /**
+     * Stops the script and logs out the player.
+     */
+    private void stopScriptAndLogout() {
+        try {
+            Microbot.log("Stopping script due to critical error...");
+            
+            // Stop the script
+            this.shutdown();
+            
+            // Wait a moment for shutdown to process
+            sleepGaussian(1000, 200);
+            
+            // Logout the player
+            if (Microbot.isLoggedIn()) {
+                Microbot.log("Logging out player...");
+                Rs2Player.logout();
+            }
+            
+        } catch (Exception e) {
+            Microbot.log("Error during script stop and logout: " + e.getMessage());
+        }
+    }
+    
+    /**
+     * Hops to a random Wintertodt world from the available options.
+     * 
+     * @param wintertodtWorlds Array of Wintertodt world numbers
+     * @return true if successfully hopped, false if failed
+     */
+    private boolean hopToWintertodtWorldSafely(int[] wintertodtWorlds) {
+        try {
+            // Select a random Wintertodt world
+            int targetWorld = wintertodtWorlds[Rs2Random.between(0, wintertodtWorlds.length - 1)];
+            int originalWorld = Rs2Player.getWorld();
+            
+            Microbot.log("Attempting to hop to Wintertodt world " + targetWorld + "...");
+            
+            // Perform the world hop (NOTE: Microbot.hopToWorld() has a bug - returns false even on success)
+            Microbot.hopToWorld(targetWorld);
+            
+            // Don't rely on return value - wait and check if world actually changed
+            Microbot.log("World hop initiated, waiting for completion...");
+            
+            // Wait for world hop to complete (up to 15 seconds)
+            long hopStartTime = System.currentTimeMillis();
+            boolean hopCompleted = sleepUntilTrue(() -> {
+                int currentWorld = Rs2Player.getWorld();
+                // Success if we reach target world or any other Wintertodt world
+                if (currentWorld == targetWorld) {
+                    return true;
+                }
+                // Also accept if we ended up on any Wintertodt world (server might redirect us)
+                for (int wintertodtWorld : wintertodtWorlds) {
+                    if (currentWorld == wintertodtWorld) {
+                        return true;
+                    }
+                }
+                return false;
+            }, 100, 15000);
+            
+            int finalWorld = Rs2Player.getWorld();
+            
+            if (hopCompleted) {
+                Microbot.log("Successfully hopped to Wintertodt world " + finalWorld);
+                return true;
+            } else if (finalWorld != originalWorld) {
+                // We hopped somewhere, but not to a Wintertodt world - this is partial success
+                Microbot.log("Hopped to world " + finalWorld + " but not a Wintertodt world - trying to hop again");
+                
+                // Try once more to a Wintertodt world
+                int retryWorld = wintertodtWorlds[Rs2Random.between(0, wintertodtWorlds.length - 1)];
+                Microbot.log("Attempting second hop to Wintertodt world " + retryWorld + "...");
+                Microbot.hopToWorld(retryWorld);
+                
+                boolean retryCompleted = sleepUntilTrue(() -> {
+                    int currentWorld = Rs2Player.getWorld();
+                    for (int wintertodtWorld : wintertodtWorlds) {
+                        if (currentWorld == wintertodtWorld) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }, 100, 15000);
+                
+                if (retryCompleted) {
+                    Microbot.log("Successfully hopped to Wintertodt world " + Rs2Player.getWorld() + " on second attempt");
+                    return true;
+                } else {
+                    Microbot.log("Second hop attempt failed - still on world " + Rs2Player.getWorld());
+                }
+            } else {
+                Microbot.log("World hop failed - still on original world " + originalWorld + " after 15 seconds");
+            }
+            
+            // Final attempt with a different world if we have multiple options
+            if (wintertodtWorlds.length > 1) {
+                int finalAttemptWorld;
+                do {
+                    finalAttemptWorld = wintertodtWorlds[Rs2Random.between(0, wintertodtWorlds.length - 1)];
+                } while (finalAttemptWorld == targetWorld && wintertodtWorlds.length > 1);
+                
+                Microbot.log("Final attempt - trying Wintertodt world " + finalAttemptWorld + "...");
+                Microbot.hopToWorld(finalAttemptWorld);
+                
+                boolean finalCompleted = sleepUntilTrue(() -> {
+                    int currentWorld = Rs2Player.getWorld();
+                    for (int wintertodtWorld : wintertodtWorlds) {
+                        if (currentWorld == wintertodtWorld) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }, 100, 15000);
+                
+                if (finalCompleted) {
+                    Microbot.log("Successfully hopped to Wintertodt world " + Rs2Player.getWorld() + " on final attempt");
+                    return true;
+                }
+            }
+            
+            Microbot.log("CRITICAL: Failed to hop to any Wintertodt world after multiple attempts");
+            return false;
+            
+        } catch (Exception e) {
+            Microbot.log("Error during world hop: " + e.getMessage());
+            e.printStackTrace();
+            return false;
+        }
+    }
+    
+    /**
      * Cleanup method called when script shuts down.
      */
     @Override
@@ -3841,10 +4130,10 @@ public class MKE_WintertodtScript extends Script {
     private Rs2ItemModel lastHoveredRoot = null;
 
     /** randomized threshold for knife pre-selection (recalculated once per full inventory cycle) */
-    private int knifePreselectThreshold = 6;
+    private static int knifePreselectThreshold = 6;
     
     /** tracks the last inventory count to detect when we start a new full inventory cycle */
-    private int lastInventoryCount = 0;
+    private static int lastInventoryCount = 0;
 
     /* ═══════════════════  LEAVING THE ARENA  ═════════════════════ */
 
@@ -3895,11 +4184,11 @@ public class MKE_WintertodtScript extends Script {
     private boolean previouslyInsideArena = true;
 
     /** tracks if we're waiting for round to end naturally to collect rewards */
-    private boolean waitingForRoundEnd = false;
+    private static boolean waitingForRoundEnd = false;
 
     /* ═══════════════════  ACTION / PLAN RESET  ═════════════════════ */
     /** Clears all per-round goals, counters, locks & cooldown stamps */
-    private void resetActionPlanning()
+    public static void resetActionPlanning()
     {
         Microbot.log("-- Resetting action plan & cooldowns");
 
@@ -4229,8 +4518,6 @@ public class MKE_WintertodtScript extends Script {
         if (BreakHandlerScript.isBreakActive()) {
             return true;
         }
-
-
 
         // Pause if action cooldown is active
         if (Rs2AntibanSettings.actionCooldownActive) {
