@@ -862,7 +862,7 @@ public class WintertodtGearDatabase {
     private List<WintertodtGearItem> createShieldGear() {
         return Arrays.asList(
             // Bruma torch offhand (Best for Wintertodt)
-            new WintertodtGearItem.Builder(ItemID.BRUMA_TORCH, "Bruma torch (offhand)", SHIELD)
+            new WintertodtGearItem.Builder(ItemID.BRUMA_TORCH_OFFHAND, "Bruma torch (off-hand)", SHIELD)
                 .priority(900).category(WintertodtGearItem.GearCategory.SKILL_GEAR)
                 .levelRequirement(Skill.FIREMAKING, 50)
                 .hasSpecialEffect().untradeable().providesWarmth()
