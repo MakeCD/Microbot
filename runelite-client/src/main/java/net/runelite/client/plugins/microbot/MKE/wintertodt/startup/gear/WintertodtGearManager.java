@@ -3,6 +3,8 @@ package net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.ItemID;
 import net.runelite.api.Skill;
+import net.runelite.api.Quest;
+import net.runelite.api.QuestState;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
@@ -12,30 +14,29 @@ import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.MKE_WintertodtConfig;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntil;
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
 
 /**
- * Comprehensive gear manager for Wintertodt optimization.
- * Analyzes available gear and automatically equips the best setup for maximum efficiency.
- * 
- * Priority System:
- * 1. Pyromancer gear (1000+ priority) - Best in slot for Wintertodt
- * 2. Warm clothing (600-799) - Provides cold resistance 
- * 3. Graceful outfit (400-599) - Weight reduction for faster movement
- * 4. High-level combat gear (200-399) - Good stats but not Wintertodt-specific
- * 5. Basic gear (0-199) - Fallback options
+ * Database-driven gear manager for Wintertodt optimization.
+ * Leverages the comprehensive WintertodtGearDatabase to automatically find and equip
+ * the best available gear based on player's access and skill levels.
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 2.0.0
  */
 public class WintertodtGearManager {
     
     private final MKE_WintertodtConfig config;
     private final WintertodtGearDatabase gearDatabase;
-    private Map<EquipmentInventorySlot, Integer> optimalGear;
+    private Map<EquipmentInventorySlot, WintertodtGearItem> optimalGear;
     private List<String> gearAnalysisLog;
+    
+    // Cache these to avoid repeated API calls during analysis
+    private Map<Skill, Integer> cachedPlayerLevels;
+    private Set<String> cachedCompletedQuests;
     
     public WintertodtGearManager(MKE_WintertodtConfig config) {
         this.config = config;
@@ -45,43 +46,26 @@ public class WintertodtGearManager {
     }
     
     /**
-     * Analyzes and sets up the optimal gear configuration for Wintertodt.
-     * This is the main method called by the startup manager.
-     * @return true if gear setup completed successfully
+     * Main method - analyzes and equips optimal gear for Wintertodt.
      */
     public boolean setupOptimalGear() {
         try {
-            Microbot.log("Analyzing optimal gear for Wintertodt...");
+            Microbot.log("Setting up optimal Wintertodt gear using database analysis...");
             
-            // Ensure bank is open for gear analysis
-            if (!Rs2Bank.isOpen()) {
-                // Prevent bug that causes bot to not being able to wear items in bank by adding inventory open command first
-                if (!Rs2Inventory.isOpen()) {
-                    Rs2Inventory.open();
-                }
-                if (!Rs2Bank.openBank()) {
-                    Microbot.log("Failed to open bank for gear analysis");
-                    return false;
-                }
-            }
-            
-            // STEP 0: Handle bruma torch conversion if needed
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            if (axeDecision.needsBrumaTorchConversion()) {
-                gearAnalysisLog.add("Converting bruma torch to offhand version...");
-                if (!WintertodtAxeManager.performBrumaTorchConversion()) {
-                    gearAnalysisLog.add("Failed to convert bruma torch - continuing without it");
-                } else {
-                    gearAnalysisLog.add("Successfully converted bruma torch to offhand version");
-                }
-            }
-            
-            // First analyze what gear is optimal
-            if (!analyzeOptimalGear()) {
+            // Ensure bank access
+            if (!ensureBankAccess()) {
                 return false;
             }
             
-            // Then equip the optimal gear
+            // Handle bruma torch conversion if needed
+            handleBrumaTorchConversion();
+            
+            // Analyze optimal gear using database
+            if (!analyzeOptimalGearFromDatabase()) {
+                return false;
+            }
+            
+            // Equip the optimal gear
             return equipOptimalGear();
             
         } catch (Exception e) {
@@ -92,70 +76,256 @@ public class WintertodtGearManager {
     }
     
     /**
-     * Analyzes available gear and determines optimal setup.
-     * Checks bank and inventory for best items player can use.
+     * Cache player data once per analysis to improve performance.
      */
-    private boolean analyzeOptimalGear() {
+    private void cachePlayerData() {
+        cachedPlayerLevels = getCurrentPlayerSkillLevels();
+        cachedCompletedQuests = getCompletedQuests();
+        gearAnalysisLog.add("Cached player data - " + cachedCompletedQuests.size() + " quests completed");
+    }
+    
+    /**
+     * Database-driven gear analysis - finds best available gear for each slot.
+     */
+    private boolean analyzeOptimalGearFromDatabase() {
         try {
-            Microbot.log("Analyzing optimal gear for Wintertodt...");
+            Microbot.log("Analyzing gear using comprehensive database...");
             gearAnalysisLog.clear();
             optimalGear.clear();
             
-            // Analyze each equipment slot
-            analyzeHeadSlot();
-            analyzeBodySlot();
-            analyzeLegsSlot();
-            analyzeFeetSlot();
-            analyzeHandsSlot();
-            analyzeWeaponSlot();
-            analyzeShieldSlot();
-            analyzeNeckSlot();
-            analyzeRingSlot();
-            analyzeCapeSlot();
+            // Cache player data once for entire analysis
+            cachePlayerData();
             
-            // Log analysis results
-            logGearAnalysis();
+            // Analyze each equipment slot using database
+            for (EquipmentInventorySlot slot : EquipmentInventorySlot.values()) {
+                analyzeSlotFromDatabase(slot);
+            }
+            
+            // Log comprehensive analysis
+            logDetailedGearAnalysis();
             
             return true;
             
         } catch (Exception e) {
-            Microbot.log("Error analyzing gear: " + e.getMessage());
+            Microbot.log("Error analyzing gear from database: " + e.getMessage());
             return false;
         }
     }
     
     /**
-     * Equips the optimal gear setup.
-     * Banks current non-optimal gear and withdraws/equips best items.
+     * Analyzes a specific equipment slot using the database.
      */
-    public boolean equipOptimalGear() {
+    private void analyzeSlotFromDatabase(EquipmentInventorySlot slot) {
+        gearAnalysisLog.add("=== " + slot.name() + " SLOT ANALYSIS ===");
+        
+        // Get all gear items for this slot from database
+        List<WintertodtGearItem> availableGear = gearDatabase.getGearForSlot(slot)
+            .stream()
+            .filter(this::canPlayerUseItem)
+            .filter(this::hasAccessToItem)
+            .sorted((a, b) -> Integer.compare(b.getEffectivePriority(), a.getEffectivePriority()))
+            .collect(Collectors.toList());
+            
+        if (availableGear.isEmpty()) {
+            gearAnalysisLog.add("No suitable gear found for " + slot.name());
+            return;
+        }
+        
+        // Special handling for weapon slot (axe logic)
+        if (slot == EquipmentInventorySlot.WEAPON) {
+            handleWeaponSlotSpecialLogic(availableGear);
+            return;
+        }
+        
+        // For other slots, pick the highest priority item
+        WintertodtGearItem bestItem = availableGear.get(0);
+        optimalGear.put(slot, bestItem);
+        
+        gearAnalysisLog.add("Selected: " + bestItem.getItemName() + 
+                           " (Priority: " + bestItem.getEffectivePriority() + ")");
+        gearAnalysisLog.add("Reason: " + bestItem.getDescription());
+        
+        if (bestItem.providesWarmth()) {
+            gearAnalysisLog.add("Provides warmth");
+        }
+        if (bestItem.getWeight() < 0) {
+            gearAnalysisLog.add("Weight reduction: " + Math.abs(bestItem.getWeight()) + " kg");
+        }
+        if (bestItem.hasSpecialEffect()) {
+            gearAnalysisLog.add("Special effect");
+        }
+        
+        // Log alternatives
+        if (availableGear.size() > 1) {
+            gearAnalysisLog.add("Alternatives found: " + (availableGear.size() - 1));
+            for (int i = 1; i < Math.min(4, availableGear.size()); i++) {
+                WintertodtGearItem alt = availableGear.get(i);
+                gearAnalysisLog.add("  - " + alt.getItemName() + " (Priority: " + alt.getEffectivePriority() + ")");
+            }
+        }
+    }
+    
+    /**
+     * Special logic for weapon slot considering axe management.
+     */
+    private void handleWeaponSlotSpecialLogic(List<WintertodtGearItem> availableWeapons) {
+        gearAnalysisLog.add("Applying weapon slot special logic...");
+        
+        // Get axe decision
+        WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
+        gearAnalysisLog.add("Axe decision: " + axeDecision.toString());
+        
+        if (axeDecision.shouldEquipAxe()) {
+            // Find the axe in available weapons
+            WintertodtGearItem axeItem = availableWeapons.stream()
+                .filter(item -> item.getItemId() == axeDecision.getAxeId())
+                .findFirst()
+                .orElse(null);
+                
+            if (axeItem != null) {
+                optimalGear.put(EquipmentInventorySlot.WEAPON, axeItem);
+                gearAnalysisLog.add("Selected axe for weapon slot: " + axeItem.getItemName());
+            } else {
+                gearAnalysisLog.add("Optimal axe not accessible, finding fallback...");
+                findFallbackWeapon(availableWeapons);
+            }
+        } else {
+            gearAnalysisLog.add("Axe will be kept in inventory, selecting alternative weapon...");
+            // Find best non-axe weapon
+            WintertodtGearItem bestNonAxe = availableWeapons.stream()
+                .filter(item -> !item.getItemName().toLowerCase().contains("axe"))
+                .findFirst()
+                .orElse(null);
+                
+            if (bestNonAxe != null) {
+                optimalGear.put(EquipmentInventorySlot.WEAPON, bestNonAxe);
+                gearAnalysisLog.add("Selected alternative weapon: " + bestNonAxe.getItemName());
+            }
+        }
+    }
+    
+    /**
+     * Finds fallback weapon if optimal choice isn't available.
+     */
+    private void findFallbackWeapon(List<WintertodtGearItem> availableWeapons) {
+        if (!availableWeapons.isEmpty()) {
+            WintertodtGearItem fallback = availableWeapons.get(0);
+            optimalGear.put(EquipmentInventorySlot.WEAPON, fallback);
+            gearAnalysisLog.add("Fallback weapon: " + fallback.getItemName());
+        }
+    }
+    
+    /**
+     * Checks if player can use an item based on requirements using the item's built-in method.
+     */
+    private boolean canPlayerUseItem(WintertodtGearItem item) {
+        // Use cached data instead of re-fetching
+        boolean meetsReqs = item.meetsRequirements(cachedPlayerLevels, cachedCompletedQuests);
+        
+        if (!meetsReqs) {
+            gearAnalysisLog.add("  X " + item.getItemName() + " - requirements not met");
+            logUnmetRequirements(item, cachedPlayerLevels, cachedCompletedQuests);
+        }
+        
+        return meetsReqs;
+    }
+    
+    /**
+     * Gets current player skill levels.
+     */
+    private Map<Skill, Integer> getCurrentPlayerSkillLevels() {
+        Map<Skill, Integer> playerLevels = new HashMap<>();
+        for (Skill skill : Skill.values()) {
+            playerLevels.put(skill, Rs2Player.getRealSkillLevel(skill));
+        }
+        return playerLevels;
+    }
+    
+    /**
+     * Enhanced quest checking with better error handling.
+     */
+    private Set<String> getCompletedQuests() {
+        Set<String> completedQuests = new HashSet<>();
+        
+        try {
+            int questCount = 0;
+            // Check all quests using RuneLite's quest state system
+            for (Quest quest : Quest.values()) {
+                try {
+                    if (Rs2Player.getQuestState(quest) == QuestState.FINISHED) {
+                        completedQuests.add(quest.getName());
+                        completedQuests.add(quest.toString());
+                        questCount++;
+                    }
+                } catch (Exception e) {
+                    // Individual quest check failed, continue with others
+                    Microbot.log("Failed to check quest: " + quest.name());
+                }
+            }
+            
+            gearAnalysisLog.add("Detected " + questCount + " completed quests");
+            
+        } catch (Exception e) {
+            Microbot.log("Error checking quest states: " + e.getMessage());
+            gearAnalysisLog.add("Quest checking failed - using conservative gear analysis");
+        }
+        
+        return completedQuests;
+    }
+    
+    /**
+     * Logs unmet requirements for debugging.
+     */
+    private void logUnmetRequirements(WintertodtGearItem item, Map<Skill, Integer> playerLevels, Set<String> completedQuests) {
+        // Check which skill requirements are not met
+        for (Map.Entry<Skill, Integer> req : item.getSkillRequirements().entrySet()) {
+            int playerLevel = playerLevels.getOrDefault(req.getKey(), 1);
+            if (playerLevel < req.getValue()) {
+                gearAnalysisLog.add("    Need " + req.getKey().getName() + " " + req.getValue() + " (have " + playerLevel + ")");
+            }
+        }
+        
+        // Check which quest requirements are not met
+        for (String quest : item.getQuestRequirements()) {
+            if (!completedQuests.contains(quest)) {
+                gearAnalysisLog.add("    Need quest: " + quest);
+            }
+        }
+    }
+    
+    /**
+     * Checks if player has access to an item.
+     */
+    private boolean hasAccessToItem(WintertodtGearItem item) {
+        int itemId = item.getItemId();
+        return Rs2Inventory.hasItem(itemId) || 
+               Rs2Equipment.isWearing(itemId) || 
+               Rs2Bank.hasItem(itemId);
+    }
+    
+    /**
+     * Equips all optimal gear pieces.
+     */
+    private boolean equipOptimalGear() {
         try {
             Microbot.log("Equipping optimal gear setup...");
             
-            // Ensure bank is open
-            if (!Rs2Bank.isOpen()) {
-                // Prevent bug that causes bot to not being able to wear items in bank by adding inventory open command first
-                if (!Rs2Inventory.isOpen()) {
-                    Rs2Inventory.open();
-                }
-                if (!Rs2Bank.openBank()) {
-                    Microbot.log("Failed to open bank for gear setup");
-                    return false;
-                }
+            if (!ensureBankAccess()) {
+                return false;
             }
             
             // Bank current non-optimal equipment
             bankCurrentGear();
             
-            // Withdraw and equip optimal gear
-            for (Map.Entry<EquipmentInventorySlot, Integer> entry : optimalGear.entrySet()) {
-                equipSlotItem(entry.getKey(), entry.getValue());
+            // Equip each optimal gear piece
+            for (Map.Entry<EquipmentInventorySlot, WintertodtGearItem> entry : optimalGear.entrySet()) {
+                equipGearItem(entry.getValue());
             }
             
-            // Handle special inventory items
+            // Setup inventory tools
             setupInventoryTools();
             
-            Microbot.log("Gear setup completed successfully!");
+            Microbot.log("Optimal gear equipped successfully!");
             return true;
             
         } catch (Exception e) {
@@ -164,509 +334,225 @@ public class WintertodtGearManager {
         }
     }
     
-    private void analyzeHeadSlot() {
-        int bestItem = 0;
-        String reason = "No suitable head gear found";
-        
-        // Pyromancer hood (best)
-        if (hasAccess(ItemID.PYROMANCER_HOOD)) {
-            bestItem = ItemID.PYROMANCER_HOOD;
-            reason = "Pyromancer hood - Best for Wintertodt";
-        }
-        // Clue hunter gear (warm clothing)
-        else if (hasAccess(ItemID.CLUE_HUNTER_GARB)) {
-            bestItem = ItemID.CLUE_HUNTER_GARB;
-            reason = "Clue hunter garb - Provides warmth";
-        }
-        // Graceful hood
-        else if (hasAccess(ItemID.GRACEFUL_HOOD) && Rs2Player.getSkillRequirement(Skill.AGILITY, 30)) {
-            bestItem = ItemID.GRACEFUL_HOOD;
-            reason = "Graceful hood - Weight reduction";
-        }
-        // Fashionscape options
-        else if (hasAccess(ItemID.SANTA_HAT)) {
-            bestItem = ItemID.SANTA_HAT;
-            reason = "Santa hat - Festive and warm";
-        }
-        else if (hasAccess(ItemID.ANTISANTA_MASK)) {
-            bestItem = ItemID.ANTISANTA_MASK;
-            reason = "Anti-santa mask - Provides warmth";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.HEAD, bestItem);
-            gearAnalysisLog.add("HEAD: " + reason);
-        }
-    }
-    
-    private void analyzeBodySlot() {
-        int bestItem = 0;
-        String reason = "No suitable body gear found";
-        
-        // Pyromancer garb (best)
-        if (hasAccess(ItemID.PYROMANCER_GARB)) {
-            bestItem = ItemID.PYROMANCER_GARB;
-            reason = "Pyromancer garb - Best for Wintertodt";
-        }
-        // Graceful top
-        else if (hasAccess(ItemID.GRACEFUL_TOP) && Rs2Player.getSkillRequirement(Skill.AGILITY, 35)) {
-            bestItem = ItemID.GRACEFUL_TOP;
-            reason = "Graceful top - Weight reduction";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.BODY, bestItem);
-            gearAnalysisLog.add("BODY: " + reason);
-        }
-    }
-    
-    private void analyzeLegsSlot() {
-        int bestItem = 0;
-        String reason = "No suitable leg gear found";
-        
-        // Pyromancer robe (best)
-        if (hasAccess(ItemID.PYROMANCER_ROBE)) {
-            bestItem = ItemID.PYROMANCER_ROBE;
-            reason = "Pyromancer robe - Best for Wintertodt";
-        }
-        // Clue hunter gear (warm clothing)
-        else if (hasAccess(ItemID.CLUE_HUNTER_TROUSERS)) {
-            bestItem = ItemID.CLUE_HUNTER_TROUSERS;
-            reason = "Clue hunter trousers - Provides warmth";
-        }
-        // Graceful legs
-        else if (hasAccess(ItemID.GRACEFUL_LEGS) && Rs2Player.getSkillRequirement(Skill.AGILITY, 40)) {
-            bestItem = ItemID.GRACEFUL_LEGS;
-            reason = "Graceful legs - Weight reduction";
-        }
-        // Ham robe legs
-        else if (hasAccess(ItemID.HAM_ROBE)) {
-            bestItem = ItemID.HAM_ROBE;
-            reason = "Ham robe - Light and warm";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.LEGS, bestItem);
-            gearAnalysisLog.add("LEGS: " + reason);
-        }
-    }
-    
-    private void analyzeFeetSlot() {
-        int bestItem = 0;
-        String reason = "No suitable boot gear found";
-        
-        // Pyromancer boots (best)
-        if (hasAccess(ItemID.PYROMANCER_BOOTS)) {
-            bestItem = ItemID.PYROMANCER_BOOTS;
-            reason = "Pyromancer boots - Best for Wintertodt";
-        }
-        // Clue hunter gear (warm clothing)
-        else if (hasAccess(ItemID.CLUE_HUNTER_BOOTS)) {
-            bestItem = ItemID.CLUE_HUNTER_BOOTS;
-            reason = "Clue hunter boots - Provides warmth";
-        }
-        // Graceful boots
-        else if (hasAccess(ItemID.GRACEFUL_BOOTS) && Rs2Player.getSkillRequirement(Skill.AGILITY, 25)) {
-            bestItem = ItemID.GRACEFUL_BOOTS;
-            reason = "Graceful boots - Weight reduction";
-        }
-        // Ham boots
-        else if (hasAccess(ItemID.HAM_BOOTS)) {
-            bestItem = ItemID.HAM_BOOTS;
-            reason = "Ham boots - Light and warm";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.BOOTS, bestItem);
-            gearAnalysisLog.add("FEET: " + reason);
-        }
-    }
-    
-    private void analyzeHandsSlot() {
-        int bestItem = 0;
-        String reason = "No suitable glove gear found";
-        
-        // Warm gloves (best)
-        if (hasAccess(ItemID.WARM_GLOVES)) {
-            bestItem = ItemID.WARM_GLOVES;
-            reason = "Warm gloves - Best for Wintertodt";
-        }
-        // Clue hunter gear (warm clothing)
-        else if (hasAccess(ItemID.CLUE_HUNTER_GLOVES)) {
-            bestItem = ItemID.CLUE_HUNTER_GLOVES;
-            reason = "Clue hunter gloves - Provides warmth";
-        }
-        // Graceful gloves
-        else if (hasAccess(ItemID.GRACEFUL_GLOVES) && Rs2Player.getSkillRequirement(Skill.AGILITY, 20)) {
-            bestItem = ItemID.GRACEFUL_GLOVES;
-            reason = "Graceful gloves - Weight reduction";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.GLOVES, bestItem);
-            gearAnalysisLog.add("HANDS: " + reason);
-        }
-    }
-    
     /**
-     * Analyzes the weapon slot with automatic axe management.
+     * Equips a specific gear item.
      */
-    private void analyzeWeaponSlot() {
-        gearAnalysisLog.add("=== WEAPON SLOT ANALYSIS ===");
+    private void equipGearItem(WintertodtGearItem gearItem) {
+        int itemId = gearItem.getItemId();
         
-        // Get automatic axe decision
-        WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-        gearAnalysisLog.add("Automatic axe analysis: " + axeDecision.toString());
+        // Skip if already equipped
+        if (Rs2Equipment.isWearing(itemId)) {
+            Microbot.log("Already wearing: " + gearItem.getItemName());
+            return;
+        }
         
-        if (axeDecision.shouldEquipAxe()) {
-            // Equip the axe
-            if (hasAccess(axeDecision.getAxeId())) {
-                optimalGear.put(EquipmentInventorySlot.WEAPON, axeDecision.getAxeId());
-                gearAnalysisLog.add("Will equip: " + axeDecision.getAxeName());
+        // Withdraw if needed
+        if (!Rs2Inventory.hasItem(itemId)) {
+            if (Rs2Bank.hasItem(itemId)) {
+                Rs2Bank.withdrawOne(itemId);
+                sleepUntil(() -> Rs2Inventory.hasItem(itemId), 3000);
             } else {
-                gearAnalysisLog.add("Cannot access optimal axe: " + axeDecision.getAxeName());
-                // Fallback to any available axe that can be equipped
-                findFallbackEquippableAxe();
+                Microbot.log("Warning: Cannot find " + gearItem.getItemName() + " in bank");
+                return;
             }
-        } else {
-            gearAnalysisLog.add("Will keep axe in inventory: " + axeDecision.getAxeName());
-            // Don't equip any weapon - axe will be handled by inventory manager
-            
-            // Check for other useful weapons to equip instead
-            analyzeAlternativeWeapons();
         }
+        
+        // Equip the item
+        Microbot.log("Equipping: " + gearItem.getItemName());
+        Rs2Inventory.wield(itemId);
+        sleepUntil(() -> Rs2Equipment.isWearing(itemId), 3000);
     }
     
     /**
-     * Finds a fallback axe if the optimal one isn't available.
-     */
-    private void findFallbackEquippableAxe() {
-        List<WintertodtGearItem> axes = gearDatabase.getGearForSlot(EquipmentInventorySlot.WEAPON)
-            .stream()
-            .filter(item -> item.getItemName().toLowerCase().contains("axe"))
-            .filter(item -> hasAccess(item.getItemId()))
-            .sorted((a, b) -> Integer.compare(b.getPriority(), a.getPriority()))
-            .collect(java.util.stream.Collectors.toList());
-            
-        if (!axes.isEmpty()) {
-            WintertodtGearItem fallbackAxe = axes.get(0);
-            optimalGear.put(EquipmentInventorySlot.WEAPON, fallbackAxe.getItemId());
-            gearAnalysisLog.add("Fallback axe: " + fallbackAxe.getItemName());
-        }
-    }
-    
-    /**
-     * Analyzes alternative weapons when axe is kept in inventory.
-     */
-    private void analyzeAlternativeWeapons() {
-        // Look for utility weapons like bruma torch
-        List<WintertodtGearItem> weapons = gearDatabase.getGearForSlot(EquipmentInventorySlot.WEAPON)
-            .stream()
-            .filter(item -> !item.getItemName().toLowerCase().contains("axe"))
-            .filter(item -> hasAccess(item.getItemId()))
-            .sorted((a, b) -> Integer.compare(b.getPriority(), a.getPriority()))
-            .collect(java.util.stream.Collectors.toList());
-            
-        if (!weapons.isEmpty()) {
-            WintertodtGearItem weapon = weapons.get(0);
-            optimalGear.put(EquipmentInventorySlot.WEAPON, weapon.getItemId());
-            gearAnalysisLog.add("Alternative weapon: " + weapon.getItemName());
-        }
-    }
-    
-    private void analyzeShieldSlot() {
-        int bestItem = 0;
-        String reason = "No suitable shield found";
-        
-        // Bruma torch offhand (best for Wintertodt - acts as tinderbox)
-        if (hasAccess(ItemID.BRUMA_TORCH_OFFHAND) && Rs2Player.getSkillRequirement(Skill.FIREMAKING, 50)) {
-            bestItem = ItemID.BRUMA_TORCH_OFFHAND;
-            reason = "Bruma torch offhand - Acts as tinderbox and frees inventory space";
-        }
-        // Regular bruma torch (should be converted to offhand if possible)
-        else if (hasAccess(ItemID.BRUMA_TORCH) && Rs2Player.getSkillRequirement(Skill.FIREMAKING, 50)) {
-            // This will be handled by bruma torch conversion logic
-            gearAnalysisLog.add("SHIELD: Regular bruma torch found - conversion to offhand will be handled");
-        }
-        // Tome of fire
-        else if (hasAccess(ItemID.TOME_OF_FIRE)) {
-            bestItem = ItemID.TOME_OF_FIRE;
-            reason = "Tome of fire - Firemaking bonus";
-        }
-        // Fashionscape shields
-        else if (hasAccess(ItemID.BOOK_OF_KNOWLEDGE)) {
-            bestItem = ItemID.BOOK_OF_KNOWLEDGE;
-            reason = "Book of knowledge - Fashionscape";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.SHIELD, bestItem);
-            gearAnalysisLog.add("SHIELD: " + reason);
-        }
-    }
-    
-    private void analyzeNeckSlot() {
-        int bestItem = 0;
-        String reason = "No suitable amulet found";
-        
-        // Teleport jewelry (for utility)
-        if (hasAccess(ItemID.GAMES_NECKLACE8)) {
-            bestItem = ItemID.GAMES_NECKLACE8;
-            reason = "Games necklace - Wintertodt teleport";
-        }
-        else if (hasAccess(ItemID.AMULET_OF_GLORY4)) {
-            bestItem = ItemID.AMULET_OF_GLORY4;
-            reason = "Amulet of glory - Useful teleports";
-        }
-        // Fashionscape options
-        else if (hasAccess(ItemID.GHOSTSPEAK_AMULET)) {
-            bestItem = ItemID.GHOSTSPEAK_AMULET;
-            reason = "Ghostspeak amulet - Fashionscape";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.AMULET, bestItem);
-            gearAnalysisLog.add("NECK: " + reason);
-        }
-    }
-    
-    private void analyzeRingSlot() {
-        int bestItem = 0;
-        String reason = "No suitable ring found";
-        
-        // Utility rings
-        if (hasAccess(ItemID.RING_OF_DUELING8)) {
-            bestItem = ItemID.RING_OF_DUELING8;
-            reason = "Ring of dueling - Useful teleports";
-        }
-        else if (hasAccess(ItemID.RING_OF_WEALTH_5)) {
-            bestItem = ItemID.RING_OF_WEALTH_5;
-            reason = "Ring of wealth - Grand Exchange teleport";
-        }
-        // Fashionscape rings
-        else if (hasAccess(ItemID.GOLD_RING)) {
-            bestItem = ItemID.GOLD_RING;
-            reason = "Gold ring - Fashionscape";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.RING, bestItem);
-            gearAnalysisLog.add("RING: " + reason);
-        }
-    }
-    
-    private void analyzeCapeSlot() {
-        int bestItem = 0;
-        String reason = "No suitable cape found";
-        
-        // Skill capes (best for Wintertodt)
-        if (hasAccess(ItemID.FIREMAKING_CAPE)) {
-            bestItem = ItemID.FIREMAKING_CAPE;
-            reason = "Firemaking cape - Perfect for Wintertodt";
-        }
-        else if (hasAccess(ItemID.FLETCHING_CAPE)) {
-            bestItem = ItemID.FLETCHING_CAPE;
-            reason = "Fletching cape - Useful for fletching at Wintertodt";
-        }
-        // Clue hunter gear (warm clothing)
-        else if (hasAccess(ItemID.CLUE_HUNTER_CLOAK)) {
-            bestItem = ItemID.CLUE_HUNTER_CLOAK;
-            reason = "Clue hunter cloak - Provides warmth";
-        }
-        // Graceful cape
-        else if (hasAccess(ItemID.GRACEFUL_CAPE) && Rs2Player.getSkillRequirement(Skill.AGILITY, 15)) {
-            bestItem = ItemID.GRACEFUL_CAPE;
-            reason = "Graceful cape - Weight reduction";
-        }
-        // Warm capes
-        else if (hasAccess(ItemID.TEAM_CAPE_ZERO)) {
-            bestItem = ItemID.TEAM_CAPE_ZERO;
-            reason = "Team cape - Basic fashionscape";
-        }
-        
-        if (bestItem != 0) {
-            optimalGear.put(EquipmentInventorySlot.CAPE, bestItem);
-            gearAnalysisLog.add("CAPE: " + reason);
-        }
-    }
-    
-    private boolean hasAccess(int itemId) {
-        return Rs2Inventory.hasItem(itemId) || Rs2Equipment.isWearing(itemId) || Rs2Bank.hasItem(itemId);
-    }
-    
-    /**
-     * Banks current gear but preserves tools that are optimally arranged.
+     * Banks current gear intelligently, preserving optimally placed tools.
      */
     private void bankCurrentGear() {
         try {
-        Microbot.log("Banking current gear...");
-        
-            // Get current axe decision to know if axe should be preserved
+            Microbot.log("Banking current gear (preserving optimal tool placement)...");
+            
             WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
             
-            // Bank all inventory items except optimally placed tools
+            // Bank inventory items except optimally placed tools
             for (int slotIndex = 0; slotIndex < 28; slotIndex++) {
-                final int slot = slotIndex; // Make effectively final for lambda usage
+                final int slot = slotIndex; // Make effectively final for lambda
                 Rs2ItemModel item = Rs2Inventory.get(slot);
-                if (item != null) {
-                    int itemId = item.getId();
-                    
-                    // Skip banking tools that are in optimal positions
-                    if (shouldPreserveTool(itemId, slot, axeDecision)) {
-                        Microbot.log("Preserving optimally placed tool: " + item.getName() + " in slot " + slot);
-                        continue;
-                    }
-                    
-                    // Bank everything else
-                    Rs2Bank.depositOne(itemId);
+                if (item != null && !shouldPreserveTool(item.getId(), slot, axeDecision)) {
+                    Rs2Bank.depositOne(item.getId());
                     sleepUntilTrue(() -> Rs2Inventory.get(slot) == null || 
-                                         Rs2Inventory.get(slot).getId() != itemId, 100, 2000);
+                                         Rs2Inventory.get(slot).getId() != item.getId(), 100, 2000);
                 }
             }
             
         } catch (Exception e) {
-            Microbot.log("Error banking current gear: " + e.getMessage());
-            e.printStackTrace();
+            Microbot.log("Error banking gear: " + e.getMessage());
         }
     }
     
     /**
-     * Determines if a tool should be preserved based on its optimal placement.
+     * Determines if a tool should be preserved in its current position.
      */
     private boolean shouldPreserveTool(int itemId, int slot, WintertodtAxeManager.AxeDecision axeDecision) {
-        // Preserve knife in slot 27
+        // Preserve knife in slot 27 (fletching)
         if (itemId == ItemID.KNIFE && slot == 27 && config.fletchRoots()) {
             return true;
-            }
+        }
         
-        // Preserve hammer in slot 26
+        // Preserve hammer in slot 26 (brazier repair)
         if (itemId == ItemID.HAMMER && slot == 26 && config.fixBrazier()) {
             return true;
         }
         
-        // Preserve axe in slot 24 if it should be in inventory
-        if (itemId == axeDecision.getAxeId() && slot == 24 && !axeDecision.shouldEquipAxe()) {
-            return true;
-        }
-        
-        // Preserve tinderbox in slot 25 if no bruma torch equipped
+        // Preserve tinderbox in slot 25 (if no bruma torch)
         if (itemId == ItemID.TINDERBOX && slot == 25 && 
             !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) && 
             !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND)) {
             return true;
         }
         
+        // Preserve axe in slot 24 (if should be in inventory)
+        if (itemId == axeDecision.getAxeId() && slot == 24 && !axeDecision.shouldEquipAxe()) {
+            return true;
+        }
+        
         return false;
     }
     
-    private void equipSlotItem(EquipmentInventorySlot slot, int itemId) {
-        // Skip if already equipped
-        if (Rs2Equipment.isWearing(itemId)) {
-            return;
-        }
-        
-        // Withdraw if not in inventory
-        if (!Rs2Inventory.hasItem(itemId)) {
-            if (Rs2Bank.hasItem(itemId)) {
-                Rs2Bank.withdrawOne(itemId);
-                sleepUntil(() -> Rs2Inventory.hasItem(itemId), 3000);
-            } else {
-                Microbot.log("Warning: Item " + itemId + " not found in bank");
-                return;
-            }
-        }
-        
-        // Equip the item
-        Rs2Inventory.wield(itemId);
-        sleepUntil(() -> Rs2Equipment.isWearing(itemId), 3000);
-    }
-    
     /**
-     * Sets up inventory tools with automatic axe detection.
-     * Only withdraws tools if they're missing - doesn't rearrange if already optimal.
+     * Sets up inventory tools based on configuration and gear decisions.
      */
     private void setupInventoryTools() {
         try {
             Microbot.log("Setting up inventory tools...");
-        
-            // Get optimal axe decision
+            
             WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            gearAnalysisLog.add("Axe decision: " + axeDecision.toString());
-        
-            // Check if axe is needed in inventory and if it's already there
-            if (!axeDecision.shouldEquipAxe()) {
-                if (!Rs2Inventory.hasItem(axeDecision.getAxeId())) {
-                    // Withdraw axe only if missing
-                    if (Rs2Bank.hasItem(axeDecision.getAxeId())) {
-                        Rs2Bank.withdrawOne(axeDecision.getAxeId());
-                        sleepUntilTrue(() -> Rs2Inventory.hasItem(axeDecision.getAxeId()), 100, 3000);
-                        Microbot.log("Withdrew axe for inventory: " + axeDecision.getAxeName());
-                    }
-                } else {
-                    Microbot.log("Axe already in inventory: " + axeDecision.getAxeName());
-            }
-        }
-        
-            // Check for knife (only if fletching enabled)
-        if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
-            if (Rs2Bank.hasItem(ItemID.KNIFE)) {
-                Rs2Bank.withdrawOne(ItemID.KNIFE);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.KNIFE), 100, 3000);
-                    Microbot.log("Withdrew knife for fletching");
-            }
-        }
-        
-            // Check for hammer (only if fixing enabled)
-        if (config.fixBrazier() && !Rs2Inventory.hasItem(ItemID.HAMMER)) {
-            if (Rs2Bank.hasItem(ItemID.HAMMER)) {
-                Rs2Bank.withdrawOne(ItemID.HAMMER);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.HAMMER), 100, 3000);
-                    Microbot.log("Withdrew hammer for brazier repairs");
-                }
+            
+            // Setup axe in inventory if needed
+            if (!axeDecision.shouldEquipAxe() && !Rs2Inventory.hasItem(axeDecision.getAxeId())) {
+                withdrawTool(axeDecision.getAxeId(), "axe for inventory");
             }
             
-            // Check for tinderbox (only if no bruma torch equipment)
+            // Setup knife if fletching enabled
+            if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
+                withdrawTool(ItemID.KNIFE, "knife for fletching");
+            }
+            
+            // Setup hammer if fixing enabled
+            if (config.fixBrazier() && !Rs2Inventory.hasItem(ItemID.HAMMER)) {
+                withdrawTool(ItemID.HAMMER, "hammer for repairs");
+            }
+            
+            // Setup tinderbox if no bruma torch equipped
             if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) && 
                 !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) &&
                 !Rs2Inventory.hasItem(ItemID.TINDERBOX)) {
-                if (Rs2Bank.hasItem(ItemID.TINDERBOX)) {
-                    Rs2Bank.withdrawOne(ItemID.TINDERBOX);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.TINDERBOX), 100, 3000);
-                    Microbot.log("Withdrew tinderbox for lighting");
-                }
+                withdrawTool(ItemID.TINDERBOX, "tinderbox for lighting");
             }
-            
-            Microbot.log("Tool setup completed - only missing tools withdrawn");
             
         } catch (Exception e) {
             Microbot.log("Error setting up inventory tools: " + e.getMessage());
-            e.printStackTrace();
         }
-    }
-    
-    private void logGearAnalysis() {
-        Microbot.log("=== Optimal Gear Analysis ===");
-        for (String logEntry : gearAnalysisLog) {
-            Microbot.log(logEntry);
-        }
-        Microbot.log("Total gear pieces: " + optimalGear.size());
     }
     
     /**
-     * Resets the gear manager state completely.
+     * Withdraws a tool if available in bank.
+     */
+    private void withdrawTool(int itemId, String description) {
+        if (Rs2Bank.hasItem(itemId)) {
+            Rs2Bank.withdrawOne(itemId);
+            sleepUntilTrue(() -> Rs2Inventory.hasItem(itemId), 100, 3000);
+            Microbot.log("Withdrew " + description);
+        }
+    }
+    
+    /**
+     * Handles bruma torch conversion if beneficial.
+     */
+    private void handleBrumaTorchConversion() {
+        WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
+        if (axeDecision.needsBrumaTorchConversion()) {
+            gearAnalysisLog.add("Converting bruma torch to offhand version...");
+            if (WintertodtAxeManager.performBrumaTorchConversion()) {
+                gearAnalysisLog.add("Successfully converted bruma torch");
+            } else {
+                gearAnalysisLog.add("X Failed to convert bruma torch");
+            }
+        }
+    }
+    
+    /**
+     * Ensures bank access is available.
+     */
+    private boolean ensureBankAccess() {
+        if (!Rs2Bank.isOpen()) {
+            if (!Rs2Inventory.isOpen()) {
+                Rs2Inventory.open();
+            }
+            if (!Rs2Bank.openBank()) {
+                Microbot.log("Failed to open bank for gear setup");
+                return false;
+            }
+        }
+        return true;
+    }
+    
+    /**
+     * Logs detailed gear analysis results.
+     */
+    private void logDetailedGearAnalysis() {
+        Microbot.log("=== DETAILED GEAR ANALYSIS RESULTS ===");
+        
+        int warmthItems = 0;
+        int totalWeight = 0;
+        int pyromancerPieces = 0;
+        
+        for (String logEntry : gearAnalysisLog) {
+            Microbot.log(logEntry);
+        }
+        
+        // Calculate summary statistics
+        for (WintertodtGearItem item : optimalGear.values()) {
+            if (item.providesWarmth()) warmthItems++;
+            totalWeight += item.getWeight();
+            if (item.getCategory() == WintertodtGearItem.GearCategory.PYROMANCER) pyromancerPieces++;
+        }
+        
+        Microbot.log("=== GEAR SUMMARY ===");
+        Microbot.log("Total gear pieces: " + optimalGear.size());
+        Microbot.log("Warmth-providing items: " + warmthItems + "/4 (max cold protection)");
+        Microbot.log("Pyromancer pieces: " + pyromancerPieces + "/4 (for XP bonus)");
+        Microbot.log("Total weight reduction: " + Math.abs(totalWeight) + " kg");
+        
+        if (warmthItems >= 4) {
+            Microbot.log("MAXIMUM COLD PROTECTION ACHIEVED");
+        } else {
+            Microbot.log("Only " + warmthItems + "/4 warmth items - consider getting more warm gear");
+        }
+        
+        if (pyromancerPieces >= 2) {
+            Microbot.log("Pyromancer XP bonus active (" + (pyromancerPieces * 0.25) + "% bonus)");
+        }
+    }
+    
+    /**
+     * Resets the gear manager state.
      */
     public void reset() {
         optimalGear.clear();
         gearAnalysisLog.clear();
-        
-        // Reset any cached state that might interfere with fresh analysis
-        Microbot.log("Gear manager state reset - ready for fresh analysis");
+        Microbot.log("Gear manager reset - ready for fresh analysis");
     }
     
     /**
-     * Gets the gear analysis log for display.
+     * Gets the detailed gear analysis log.
      */
     public List<String> getGearAnalysisLog() {
         return new ArrayList<>(gearAnalysisLog);
+    }
+    
+    /**
+     * Gets summary of current optimal gear setup.
+     */
+    public Map<EquipmentInventorySlot, WintertodtGearItem> getOptimalGear() {
+        return new HashMap<>(optimalGear);
     }
 } 

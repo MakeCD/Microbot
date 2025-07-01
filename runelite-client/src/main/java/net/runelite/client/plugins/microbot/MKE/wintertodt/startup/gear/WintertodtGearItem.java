@@ -3,8 +3,7 @@ package net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear;
 import net.runelite.api.EquipmentInventorySlot;
 import net.runelite.api.Skill;
 
-import java.util.Map;
-import java.util.HashMap;
+import java.util.*;
 
 /**
  * Represents a gear item for Wintertodt optimization.
@@ -12,7 +11,7 @@ import java.util.HashMap;
  * requirements, priority ratings, and special properties.
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class WintertodtGearItem {
     
@@ -21,7 +20,7 @@ public class WintertodtGearItem {
     private final EquipmentInventorySlot slot;
     private final int priority;
     private final Map<Skill, Integer> levelRequirements;
-    private final String questRequirement;
+    private final Set<String> questRequirements;
     private final GearCategory category;
     private final String description;
     private final boolean isTradeable;
@@ -57,7 +56,7 @@ public class WintertodtGearItem {
         this.slot = builder.slot;
         this.priority = builder.priority;
         this.levelRequirements = new HashMap<>(builder.levelRequirements);
-        this.questRequirement = builder.questRequirement;
+        this.questRequirements = new HashSet<>(builder.questRequirements);
         this.category = builder.category;
         this.description = builder.description;
         this.isTradeable = builder.isTradeable;
@@ -76,7 +75,7 @@ public class WintertodtGearItem {
         private EquipmentInventorySlot slot;
         private int priority = 0;
         private Map<Skill, Integer> levelRequirements = new HashMap<>();
-        private String questRequirement = null;
+        private Set<String> questRequirements = new HashSet<>();
         private GearCategory category = GearCategory.UTILITY;
         private String description = "";
         private boolean isTradeable = true;
@@ -102,7 +101,7 @@ public class WintertodtGearItem {
         }
         
         public Builder questRequirement(String quest) {
-            this.questRequirement = quest;
+            this.questRequirements.add(quest);
             return this;
         }
         
@@ -151,8 +150,12 @@ public class WintertodtGearItem {
     public String getItemName() { return itemName; }
     public EquipmentInventorySlot getSlot() { return slot; }
     public int getPriority() { return priority; }
+    public Map<Skill, Integer> getSkillRequirements() { return new HashMap<>(levelRequirements); }
     public Map<Skill, Integer> getLevelRequirements() { return new HashMap<>(levelRequirements); }
-    public String getQuestRequirement() { return questRequirement; }
+    public Set<String> getQuestRequirements() { return new HashSet<>(questRequirements); }
+    public String getQuestRequirement() { 
+        return questRequirements.isEmpty() ? null : questRequirements.iterator().next(); 
+    }
     public GearCategory getCategory() { return category; }
     public String getDescription() { return description; }
     public boolean isTradeable() { return isTradeable; }
@@ -167,7 +170,7 @@ public class WintertodtGearItem {
      * @param completedQuests Set of completed quest names
      * @return true if player can wear this item
      */
-    public boolean meetsRequirements(Map<Skill, Integer> playerLevels, java.util.Set<String> completedQuests) {
+    public boolean meetsRequirements(Map<Skill, Integer> playerLevels, Set<String> completedQuests) {
         // Check level requirements
         for (Map.Entry<Skill, Integer> requirement : levelRequirements.entrySet()) {
             Integer playerLevel = playerLevels.get(requirement.getKey());
@@ -177,8 +180,10 @@ public class WintertodtGearItem {
         }
         
         // Check quest requirements
-        if (questRequirement != null && !completedQuests.contains(questRequirement)) {
-            return false;
+        for (String quest : questRequirements) {
+            if (!completedQuests.contains(quest)) {
+                return false;
+            }
         }
         
         return true;

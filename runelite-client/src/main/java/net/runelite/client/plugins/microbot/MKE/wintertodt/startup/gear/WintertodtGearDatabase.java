@@ -24,7 +24,7 @@ import static net.runelite.api.EquipmentInventorySlot.*;
  * - 0-99: Basic gear
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 1.1.0
  */
 public class WintertodtGearDatabase {
     
@@ -89,17 +89,17 @@ public class WintertodtGearDatabase {
                 .build(),
                 
             // High-tier warm headgear (800-899)
-            new WintertodtGearItem.Builder(ItemID.FIREMAKING_HOOD, "Firemaking hood", HEAD)
+            new WintertodtGearItem.Builder(ItemID.FIRE_MAX_HOOD, "Fire max hood", HEAD)
                 .priority(850).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Fire max hood - provides warmth")
+                .build(),
+
+            new WintertodtGearItem.Builder(ItemID.FIREMAKING_HOOD, "Firemaking hood", HEAD)
+                .priority(840).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .levelRequirement(Skill.FIREMAKING, 99)
                 .description("Firemaking skill hood - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.FIRE_MAX_HOOD, "Fire max hood", HEAD)
-                .priority(840).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Fire max hood - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.INFERNAL_MAX_HOOD, "Infernal max hood", HEAD)
@@ -108,11 +108,12 @@ public class WintertodtGearDatabase {
                 .description("Infernal max hood - provides warmth")
                 .build(),
                 
-            // Slayer helmets (820-829)
+            // Slayer helmets (820-829) - Recently added as warm clothing (Jan 2025)
             new WintertodtGearItem.Builder(ItemID.SLAYER_HELMET, "Slayer helmet", HEAD)
                 .priority(820).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
                 .description("Slayer helmet - provides warmth")
                 .build(),
                 
@@ -120,26 +121,165 @@ public class WintertodtGearDatabase {
                 .priority(825).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
                 .description("Imbued slayer helmet - provides warmth")
+                .build(),
+                
+            // Add other slayer helmet variants (820-829)
+            new WintertodtGearItem.Builder(ItemID.BLACK_SLAYER_HELMET, "Black slayer helmet", HEAD)
+                .priority(822).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Black slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BLACK_SLAYER_HELMET_I, "Black slayer helmet (i)", HEAD)
+                .priority(823).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Black slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.GREEN_SLAYER_HELMET, "Green slayer helmet", HEAD)
+                .priority(821).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Green slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.GREEN_SLAYER_HELMET_I, "Green slayer helmet (i)", HEAD)
+                .priority(822).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Green slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.RED_SLAYER_HELMET, "Red slayer helmet", HEAD)
+                .priority(821).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Red slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.RED_SLAYER_HELMET_I, "Red slayer helmet (i)", HEAD)
+                .priority(822).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Red slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.PURPLE_SLAYER_HELMET, "Purple slayer helmet", HEAD)
+                .priority(821).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Purple slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.PURPLE_SLAYER_HELMET_I, "Purple slayer helmet (i)", HEAD)
+                .priority(822).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Purple slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.TURQUOISE_SLAYER_HELMET, "Turquoise slayer helmet", HEAD)
+                .priority(821).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Turquoise slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.TURQUOISE_SLAYER_HELMET_I, "Turquoise slayer helmet (i)", HEAD)
+                .priority(822).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Turquoise slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.HYDRA_SLAYER_HELMET, "Hydra slayer helmet", HEAD)
+                .priority(824).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Hydra slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.HYDRA_SLAYER_HELMET_I, "Hydra slayer helmet (i)", HEAD)
+                .priority(825).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Hydra slayer helmet (i) - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.TWISTED_SLAYER_HELMET, "Twisted slayer helmet", HEAD)
+                .priority(824).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Twisted slayer helmet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.TWISTED_SLAYER_HELMET_I, "Twisted slayer helmet (i)", HEAD)
+                .priority(825).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .levelRequirement(Skill.DEFENCE, 10)
+                .levelRequirement(Skill.SLAYER, 60)
+                .description("Twisted slayer helmet (i) - provides warmth")
+                .build(),
+                
+            // Snow/Winter special headgear (800-819)
+            new WintertodtGearItem.Builder(ItemID.SNOW_GOGGLES__HAT, "Snow goggles & hat", HEAD)
+                .priority(810).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Snow goggles & hat - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.SNOWGLOBE_HELMET, "Snowglobe helmet", HEAD)
+                .priority(805).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Snowglobe helmet - provides warmth")
                 .build(),
                 
             // Santa outfit (750-759)
             new WintertodtGearItem.Builder(ItemID.SANTA_HAT, "Santa hat", HEAD)
                 .priority(750).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
+                .providesWarmth()
                 .description("Santa hat - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.BLACK_SANTA_HAT, "Black santa hat", HEAD)
                 .priority(748).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
+                .providesWarmth()
                 .description("Black santa hat - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.INVERTED_SANTA_HAT, "Inverted santa hat", HEAD)
                 .priority(746).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
+                .providesWarmth()
                 .description("Inverted santa hat - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.FESTIVE_ELF_HAT, "Festive elf hat", HEAD)
+                .priority(745).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Festive elf hat - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.FESTIVE_GAMES_CROWN, "Festive games crown", HEAD)
+                .priority(744).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Festive games crown - provides warmth")
                 .build(),
                 
             // Antisanta outfit (740-749)
@@ -153,44 +293,53 @@ public class WintertodtGearDatabase {
             new WintertodtGearItem.Builder(ItemID.LARUPIA_HAT, "Larupia hat", HEAD)
                 .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
+                .levelRequirement(Skill.HUNTER, 28)
                 .description("Larupia hat - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.GRAAHK_HEADDRESS, "Graahk headdress", HEAD)
                 .priority(718).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
+                .levelRequirement(Skill.HUNTER, 38)
                 .description("Graahk headdress - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.KYATT_HAT, "Kyatt hat", HEAD)
                 .priority(716).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
+                .levelRequirement(Skill.HUNTER, 52)
                 .description("Kyatt hat - provides warmth")
                 .build(),
                 
             // Clue hunter gear (680-699)
-            new WintertodtGearItem.Builder(ItemID.CLUE_HUNTER_GARB, "Clue hunter garb", HEAD)
+            new WintertodtGearItem.Builder(ItemID.CLUE_HUNTER_GARB, "Clue hunter helmet", HEAD)
                 .priority(690).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
-                .description("Clue hunter garb - provides warmth")
+                .description("Clue hunter helmet - provides warmth")
                 .build(),
                 
             // Festive/Winter gear (660-679)
+            new WintertodtGearItem.Builder(ItemID.WOLF_MASK, "Wolf mask", HEAD)
+                .priority(675).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Wolf mask - provides warmth")
+                .build(),
+                
             new WintertodtGearItem.Builder(ItemID.BEARHEAD, "Bearhead", HEAD)
                 .priority(670).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .providesWarmth().untradeable()
                 .description("Bearhead - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.WOOLLY_HAT, "Woolly hat", HEAD)
                 .priority(665).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .providesWarmth().untradeable()
                 .description("Woolly hat - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.BOBBLE_HAT, "Bobble hat", HEAD)
                 .priority(663).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .providesWarmth().untradeable()
                 .description("Bobble hat - provides warmth")
                 .build(),
                 
@@ -200,70 +349,84 @@ public class WintertodtGearDatabase {
                 .description("Earmuffs - provides warmth")
                 .build(),
                 
-            // Animal costume heads (640-659)
-            new WintertodtGearItem.Builder(ItemID.CHICKEN_HEAD, "Chicken head", HEAD)
-                .priority(650).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+            new WintertodtGearItem.Builder(ItemID.JESTER_HAT, "Jester hat", HEAD)
+                .priority(660).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
-                .description("Chicken head - provides warmth")
+                .description("Jester hat - provides warmth")
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.EVIL_CHICKEN_HEAD, "Evil chicken head", HEAD)
-                .priority(648).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+            new WintertodtGearItem.Builder(ItemID.TRIJESTER_HAT, "Tri-jester hat", HEAD)
+                .priority(659).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
-                .description("Evil chicken head - provides warmth")
+                .description("Tri-jester hat - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.CAP_AND_GOGGLES, "Cap and goggles", HEAD)
+                .priority(658).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Cap and goggles - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BOMBER_CAP, "Bomber cap", HEAD)
+                .priority(657).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Bomber cap - provides warmth")
+                .build(),
+                
+            // Special tiara gear (650-659)
+            new WintertodtGearItem.Builder(ItemID.FIRE_TIARA, "Fire tiara", HEAD)
+                .priority(650).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Fire tiara - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.ELEMENTAL_TIARA, "Elemental tiara", HEAD)
+                .priority(648).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Elemental tiara - provides warmth")
+                .build(),
+                
+            // Skill hoods (600-649)
+            new WintertodtGearItem.Builder(ItemID.LUMBERJACK_HAT, "Lumberjack hat", HEAD)
+                .priority(630).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Lumberjack hat - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.FORESTRY_HAT, "Forestry hat", HEAD)
+                .priority(628).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Forestry hat - provides warmth")
                 .build(),
                 
             // Graceful gear (500-599) - Weight reduction but NO warmth
             new WintertodtGearItem.Builder(ItemID.GRACEFUL_HOOD, "Graceful hood", HEAD)
                 .priority(500).category(WintertodtGearItem.GearCategory.GRACEFUL)
                 .weight(-3).untradeable()
-                .levelRequirement(Skill.AGILITY, 30)
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
-            // High-level combat helms (300-399)
-            new WintertodtGearItem.Builder(ItemID.SERPENTINE_HELM, "Serpentine helm", HEAD)
-                .priority(350).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 75)
-                .reducesDamage()
-                .description("High defense - no warmth")
+            // High-level combat helms (300-399)   
+            new WintertodtGearItem.Builder(ItemID.FIGHTER_HAT, "Fighter hat", HEAD)
+                .priority(360).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .levelRequirement(Skill.DEFENCE, 40)
+                .untradeable()
+                .description("Good defensive helm - no warmth")
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.HELM_OF_NEITIZNOT, "Neitiznot helm", HEAD)
-                .priority(320).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 55)
-                .questRequirement("The Fremennik Isles")
-                .description("Good prayer bonus - no warmth")
-                .build(),
-                
-            // Basic gear (100-299)
+            // Basic gear
             new WintertodtGearItem.Builder(ItemID.RUNE_FULL_HELM, "Rune full helm", HEAD)
                 .priority(150).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 40)
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.ADAMANT_FULL_HELM, "Adamant full helm", HEAD)
-                .priority(120).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 30)
+            new WintertodtGearItem.Builder(ItemID.RUNE_MED_HELM, "Rune med helm", HEAD)
+                .priority(145).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .levelRequirement(Skill.DEFENCE, 40)
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.MITHRIL_FULL_HELM, "Mithril full helm", HEAD)
-                .priority(90).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 20)
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.STEEL_FULL_HELM, "Steel full helm", HEAD)
-                .priority(60).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 5)
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.IRON_FULL_HELM, "Iron full helm", HEAD)
-                .priority(30).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 1)
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.BRONZE_FULL_HELM, "Bronze full helm", HEAD)
-                .priority(10).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+            new WintertodtGearItem.Builder(ItemID.LEATHER_COWL, "Leather cowl", HEAD)
+                .priority(20).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .build()
         );
     }
@@ -280,8 +443,44 @@ public class WintertodtGearDatabase {
             // Warm jumpers and special body gear (750-799)
             new WintertodtGearItem.Builder(ItemID.CHRISTMAS_JUMPER, "Christmas jumper", BODY)
                 .priority(780).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .providesWarmth().untradeable()
                 .description("Christmas jumper - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.OLDSCHOOL_JUMPER, "Oldschool jumper", BODY)
+                .priority(778).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Oldschool jumper - provides warmth (added Mar 2023)")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.RAINBOW_JUMPER, "Rainbow jumper", BODY)
+                .priority(776).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Rainbow jumper - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.ICY_JUMPER, "Icy jumper", BODY)
+                .priority(774).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Icy jumper - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.UGLY_HALLOWEEN_JUMPER_BLACK, "Ugly halloween jumper black", BODY)
+                .priority(772).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Ugly halloween jumper - provides warmth")
+                .build(),
+
+            new WintertodtGearItem.Builder(ItemID.UGLY_HALLOWEEN_JUMPER_ORANGE, "Ugly halloween jumper orange", BODY)
+                .priority(770).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Ugly halloween jumper - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.SCARECROW_SHIRT, "Scarecrow shirt", BODY)
+                .priority(770).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Scarecrow shirt - provides warmth")
                 .build(),
                 
             // Santa outfit
@@ -299,22 +498,25 @@ public class WintertodtGearDatabase {
                 .build(),
                 
             // Hunter gear (700-739)
-            new WintertodtGearItem.Builder(ItemID.LARUPIA_TOP, "Larupia top", BODY)
+            new WintertodtGearItem.Builder(ItemID.KYATT_TOP, "Kyatt top", BODY)
                 .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 52)
                 .providesWarmth()
-                .description("Larupia top - provides warmth")
+                .description("Kyatt top - provides warmth")
                 .build(),
-                
+
             new WintertodtGearItem.Builder(ItemID.GRAAHK_TOP, "Graahk top", BODY)
                 .priority(718).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 38)
                 .providesWarmth()
                 .description("Graahk top - provides warmth")
                 .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.KYATT_TOP, "Kyatt top", BODY)
+
+            new WintertodtGearItem.Builder(ItemID.LARUPIA_TOP, "Larupia top", BODY)
                 .priority(716).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 28)
                 .providesWarmth()
-                .description("Kyatt top - provides warmth")
+                .description("Larupia top - provides warmth")
                 .build(),
                 
             // Animal costumes (680-699)
@@ -340,7 +542,6 @@ public class WintertodtGearDatabase {
             new WintertodtGearItem.Builder(ItemID.GRACEFUL_TOP, "Graceful top", BODY)
                 .priority(500).category(WintertodtGearItem.GearCategory.GRACEFUL)
                 .weight(-5).untradeable()
-                .levelRequirement(Skill.AGILITY, 35)
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
@@ -400,22 +601,25 @@ public class WintertodtGearDatabase {
                 .build(),
                 
             // Hunter gear (700-739)
-            new WintertodtGearItem.Builder(ItemID.LARUPIA_LEGS, "Larupia legs", LEGS)
+            new WintertodtGearItem.Builder(ItemID.KYATT_LEGS, "Kyatt legs", LEGS)
                 .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 52)
                 .providesWarmth()
-                .description("Larupia legs - provides warmth")
+                .description("Kyatt legs - provides warmth")
                 .build(),
-                
+
             new WintertodtGearItem.Builder(ItemID.GRAAHK_LEGS, "Graahk legs", LEGS)
                 .priority(718).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 38)
                 .providesWarmth()
                 .description("Graahk legs - provides warmth")
                 .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.KYATT_LEGS, "Kyatt legs", LEGS)
+
+            new WintertodtGearItem.Builder(ItemID.LARUPIA_LEGS, "Larupia legs", LEGS)
                 .priority(716).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 28)
                 .providesWarmth()
-                .description("Kyatt legs - provides warmth")
+                .description("Larupia legs - provides warmth")
                 .build(),
                 
             // Clue hunter gear (680-699)
@@ -448,7 +652,6 @@ public class WintertodtGearDatabase {
             new WintertodtGearItem.Builder(ItemID.GRACEFUL_LEGS, "Graceful legs", LEGS)
                 .priority(500).category(WintertodtGearItem.GearCategory.GRACEFUL)
                 .weight(-4).untradeable()
-                .levelRequirement(Skill.AGILITY, 40)
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
@@ -482,36 +685,80 @@ public class WintertodtGearDatabase {
                 .description("Best boots for Wintertodt")
                 .build(),
                 
-            // Special warm slippers (750-799)
-            new WintertodtGearItem.Builder(ItemID.JAD_SLIPPERS, "Jad slippers", BOOTS)
+            // Special warm boots (750-799)
+            new WintertodtGearItem.Builder(ItemID.FESTIVE_ELF_SLIPPERS, "Festive elf slippers", BOOTS)
                 .priority(780).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Festive elf slippers - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BOB_THE_CAT_SLIPPERS, "Bob the cat slippers", BOOTS)
+                .priority(775).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Bob the cat slippers - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.JAD_SLIPPERS, "Jad slippers", BOOTS)
+                .priority(770).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .description("Jad slippers - provides warmth")
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.BEAR_FEET, "Bear feet", BOOTS)
-                .priority(770).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Bear feet - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.DEMON_FEET, "Demon feet", BOOTS)
-                .priority(765).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Demon feet - provides warmth")
-                .build(),
-                
-            // Santa/Antisanta boots
+            // Santa outfit (760-769)
             new WintertodtGearItem.Builder(ItemID.SANTA_BOOTS, "Santa boots", BOOTS)
-                .priority(750).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .priority(760).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .description("Santa boots - provides warmth")
                 .build(),
                 
+            // Antisanta outfit
             new WintertodtGearItem.Builder(ItemID.ANTISANTA_BOOTS, "Antisanta boots", BOOTS)
-                .priority(740).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .priority(750).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth().untradeable()
                 .description("Antisanta boots - provides warmth")
+                .build(),
+                
+            // Animal costume feet (700-749)
+            new WintertodtGearItem.Builder(ItemID.CHICKEN_FEET, "Chicken feet", BOOTS)
+                .priority(740).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Chicken feet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.EVIL_CHICKEN_FEET, "Evil chicken feet", BOOTS)
+                .priority(738).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Evil chicken feet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BUNNY_FEET, "Bunny feet", BOOTS)
+                .priority(735).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Bunny feet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BEAR_FEET, "Bear feet", BOOTS)
+                .priority(730).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Bear feet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.DEMON_FEET, "Demon feet", BOOTS)
+                .priority(728).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Demon feet - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.MOLE_SLIPPERS, "Mole slippers", BOOTS)
+                .priority(725).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Mole slippers - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.FROG_SLIPPERS, "Frog slippers", BOOTS)
+                .priority(723).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth()
+                .description("Frog slippers - provides warmth")
                 .build(),
                 
             // Clue hunter gear (680-699)
@@ -521,53 +768,50 @@ public class WintertodtGearDatabase {
                 .description("Clue hunter boots - provides warmth")
                 .build(),
                 
-            // Animal costume feet
-            new WintertodtGearItem.Builder(ItemID.CHICKEN_FEET, "Chicken feet", BOOTS)
-                .priority(680).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Chicken feet - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.EVIL_CHICKEN_FEET, "Evil chicken feet", BOOTS)
-                .priority(678).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Evil chicken feet - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.BUNNY_FEET, "Bunny feet", BOOTS)
-                .priority(675).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth().untradeable()
-                .description("Bunny feet - provides warmth")
-                .build(),
-                
             // Graceful gear (500-599) - Weight reduction but NO warmth
             new WintertodtGearItem.Builder(ItemID.GRACEFUL_BOOTS, "Graceful boots", BOOTS)
                 .priority(500).category(WintertodtGearItem.GearCategory.GRACEFUL)
                 .weight(-4).untradeable()
-                .levelRequirement(Skill.AGILITY, 25)
+                .levelRequirement(Skill.AGILITY, 20)
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
-            // High-level boots (300-399)
-            new WintertodtGearItem.Builder(ItemID.PRIMORDIAL_BOOTS, "Primordial boots", BOOTS)
+            // High-level combat boots (300-399) - NO warmth
+            new WintertodtGearItem.Builder(ItemID.BANDOS_BOOTS, "Bandos boots", BOOTS)
                 .priority(380).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 75)
-                .description("Best strength bonus boots - no warmth")
+                .levelRequirement(Skill.DEFENCE, 65)
+                .reducesDamage()
+                .description("High defense - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.DRAGON_BOOTS, "Dragon boots", BOOTS)
-                .priority(320).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .priority(350).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 60)
+                .description("Good strength bonus - no warmth")
                 .build(),
                 
-            // Basic gear
+            new WintertodtGearItem.Builder(ItemID.CLIMBING_BOOTS, "Climbing boots", BOOTS)
+                .priority(320).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .questRequirement("Death Plateau")
+                .description("Basic strength bonus - no warmth")
+                .build(),
+                
+            // Basic gear - NO warmth
             new WintertodtGearItem.Builder(ItemID.RUNE_BOOTS, "Rune boots", BOOTS)
                 .priority(150).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 40)
+                .description("Mid-level combat boots - no warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.ADAMANT_BOOTS, "Adamant boots", BOOTS)
+                .priority(120).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .levelRequirement(Skill.DEFENCE, 30)
+                .description("Mid-level combat boots - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.LEATHER_BOOTS, "Leather boots", BOOTS)
                 .priority(20).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Basic boots - no warmth")
                 .build()
         );
     }
@@ -577,6 +821,7 @@ public class WintertodtGearDatabase {
             // Pyromancer gear (Best)
             new WintertodtGearItem.Builder(ItemID.WARM_GLOVES, "Warm gloves", GLOVES)
                 .priority(1000).category(WintertodtGearItem.GearCategory.PYROMANCER)
+                .levelRequirement(Skill.FIREMAKING, 50)
                 .providesWarmth().untradeable()
                 .description("Best gloves for Wintertodt")
                 .build(),
@@ -597,17 +842,19 @@ public class WintertodtGearDatabase {
             // Special warm gloves (720-730)
             new WintertodtGearItem.Builder(ItemID.GLOVES_OF_SILENCE, "Gloves of silence", GLOVES)
                 .priority(725).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HUNTER, 54)
                 .providesWarmth()
                 .description("Gloves of silence - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.FREMENNIK_GLOVES, "Fremennik gloves", GLOVES)
                 .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .questRequirement("The Fremennik Trials")
                 .providesWarmth()
                 .description("Fremennik gloves - provides warmth")
                 .build(),
                 
-            // Colored gloves (700-719)
+            // Colored gloves (700-719) - All tradeable
             new WintertodtGearItem.Builder(ItemID.RED_GLOVES, "Red gloves", GLOVES)
                 .priority(710).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
@@ -660,10 +907,9 @@ public class WintertodtGearDatabase {
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
-            // High-level gloves (300-399)
+            // High-level gloves (300-399) - NO warmth
             new WintertodtGearItem.Builder(ItemID.BARROWS_GLOVES, "Barrows gloves", GLOVES)
                 .priority(380).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 25)
                 .questRequirement("Recipe for Disaster")
                 .untradeable()
                 .description("Best overall gloves - no warmth")
@@ -671,13 +917,14 @@ public class WintertodtGearDatabase {
                 
             new WintertodtGearItem.Builder(ItemID.RUNE_GLOVES, "Rune gloves", GLOVES)
                 .priority(300).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.DEFENCE, 25)
                 .questRequirement("Recipe for Disaster")
                 .untradeable()
+                .description("High-level combat gloves - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.LEATHER_GLOVES, "Leather gloves", GLOVES)
                 .priority(20).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Basic gloves - no warmth")
                 .build()
         );
     }
@@ -763,48 +1010,64 @@ public class WintertodtGearDatabase {
 
             new WintertodtGearItem.Builder(ItemID.LAVA_BATTLESTAFF, "Lava battlestaff", WEAPON)
                 .priority(700).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 30)
+                .levelRequirement(Skill.ATTACK, 30)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
 
             new WintertodtGearItem.Builder(ItemID.FIRE_BATTLESTAFF, "Fire battlestaff", WEAPON)
                 .priority(698).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 30)
+                .levelRequirement(Skill.ATTACK, 30)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
 
             new WintertodtGearItem.Builder(ItemID.STEAM_BATTLESTAFF, "Steam battlestaff", WEAPON)
                 .priority(696).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 30)
+                .levelRequirement(Skill.ATTACK, 30)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
 
             new WintertodtGearItem.Builder(ItemID.SMOKE_BATTLESTAFF, "Smoke battlestaff", WEAPON)
                 .priority(694).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 30)
+                .levelRequirement(Skill.ATTACK, 30)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
             
             new WintertodtGearItem.Builder(ItemID.MYSTIC_LAVA_STAFF, "Mystic lava staff", WEAPON)
                 .priority(692).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 40)
+                .levelRequirement(Skill.ATTACK, 40)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
             
             new WintertodtGearItem.Builder(ItemID.MYSTIC_FIRE_STAFF, "Mystic fire staff", WEAPON)
                 .priority(690).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 40)
+                .levelRequirement(Skill.ATTACK, 40)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
             
             new WintertodtGearItem.Builder(ItemID.MYSTIC_STEAM_STAFF, "Mystic steam staff", WEAPON)
                 .priority(688).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 40)
+                .levelRequirement(Skill.ATTACK, 40)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
 
             new WintertodtGearItem.Builder(ItemID.MYSTIC_SMOKE_STAFF, "Mystic smoke staff", WEAPON)
                 .priority(686).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.MAGIC, 40)
+                .levelRequirement(Skill.ATTACK, 40)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
@@ -817,12 +1080,15 @@ public class WintertodtGearDatabase {
             
             new WintertodtGearItem.Builder(ItemID.INFERNAL_HARPOON, "Infernal harpoon", WEAPON)
                 .priority(680).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.FISHING, 70)
+                .levelRequirement(Skill.ATTACK, 60)
                 .providesWarmth().untradeable()
                 .description("Provides warmth.")
                 .build(),
 
             new WintertodtGearItem.Builder(ItemID.VOLCANIC_ABYSSAL_WHIP, "Volcanic abyssal whip", WEAPON)
                 .priority(670).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.ATTACK, 70)
                 .providesWarmth()
                 .description("Provides warmth.")
                 .build(),
@@ -831,6 +1097,13 @@ public class WintertodtGearDatabase {
                 .priority(660).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
                 .description("Provides warmth.")
+                .build(),
+
+            new WintertodtGearItem.Builder(ItemID.DRAGON_CANDLE_DAGGER, "Dragon candle dagger", WEAPON)
+                .priority(655).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.ATTACK, 60)
+                .providesWarmth().untradeable()
+                .description("Dragon candle dagger - provides warmth (added Mar 2023)")
                 .build(),
 
             // FASHIONSCAPE/UTILITY WEAPONS
@@ -842,6 +1115,7 @@ public class WintertodtGearDatabase {
 
             new WintertodtGearItem.Builder(ItemID.GOLDEN_TENCH, "Golden tench", WEAPON)
                 .priority(290).category(WintertodtGearItem.GearCategory.FASHIONSCAPE)
+                .untradeable()
                 .description("Fish as weapon - pure fashionscape")
                 .build(),
 
@@ -872,6 +1146,7 @@ public class WintertodtGearDatabase {
             // Tome of fire
             new WintertodtGearItem.Builder(ItemID.TOME_OF_FIRE, "Tome of fire", SHIELD)
                 .priority(850).category(WintertodtGearItem.GearCategory.SKILL_GEAR)
+                .levelRequirement(Skill.MAGIC, 50)
                 .hasSpecialEffect().untradeable().providesWarmth()
                 .description("Firemaking experience bonus - provides warmth")
                 .build(),
@@ -879,11 +1154,12 @@ public class WintertodtGearDatabase {
             // Lit bug lantern
             new WintertodtGearItem.Builder(ItemID.LIT_BUG_LANTERN, "Lit bug lantern", SHIELD)
                 .priority(820).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .levelRequirement(Skill.SLAYER, 33)
+                .providesWarmth().untradeable()
                 .description("Lit bug lantern - provides warmth")
                 .build(),
                 
-            // High-level shields
+            // High-level shields - NO warmth
             new WintertodtGearItem.Builder(ItemID.DRAGON_DEFENDER, "Dragon defender", SHIELD)
                 .priority(380).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 60)
@@ -895,89 +1171,129 @@ public class WintertodtGearDatabase {
                 .priority(150).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 40)
                 .untradeable()
+                .description("Mid-tier defender - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.RUNE_KITESHIELD, "Rune kiteshield", SHIELD)
                 .priority(140).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .levelRequirement(Skill.DEFENCE, 40)
+                .description("Mid-tier combat shield - no warmth")
                 .build()
         );
     }
     
     private List<WintertodtGearItem> createNeckGear() {
         return Arrays.asList(
-            // Warm scarves (700-750)
-            new WintertodtGearItem.Builder(ItemID.WOOLLY_SCARF, "Woolly scarf", AMULET)
-                .priority(730).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
-                .description("Woolly scarf - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.BOBBLE_SCARF, "Bobble scarf", AMULET)
-                .priority(725).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
-                .description("Bobble scarf - provides warmth")
-                .build(),
-                
-            new WintertodtGearItem.Builder(ItemID.RAINBOW_SCARF, "Rainbow scarf", AMULET)
-                .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
-                .description("Rainbow scarf - provides warmth")
-                .build(),
-                
+            // High-priority warm necklaces (700-799)
             new WintertodtGearItem.Builder(ItemID.GNOME_SCARF, "Gnome scarf", AMULET)
-                .priority(715).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .priority(750).category(WintertodtGearItem.GearCategory.WARM_GEAR)
                 .providesWarmth()
                 .description("Gnome scarf - provides warmth")
                 .build(),
                 
+            new WintertodtGearItem.Builder(ItemID.RAINBOW_SCARF, "Rainbow scarf", AMULET)
+                .priority(745).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Rainbow scarf - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.FESTIVE_SCARF, "Festive scarf", AMULET)
+                .priority(740).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Festive scarf - provides warmth")
+                .build(),
+                
             new WintertodtGearItem.Builder(ItemID.JESTER_SCARF, "Jester scarf", AMULET)
-                .priority(710).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .priority(735).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
                 .description("Jester scarf - provides warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.TRIJESTER_SCARF, "Tri-jester scarf", AMULET)
-                .priority(708).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .priority(730).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
                 .description("Tri-jester scarf - provides warmth")
                 .build(),
                 
-            // High-level amulets
+            new WintertodtGearItem.Builder(ItemID.WOOLLY_SCARF, "Woolly scarf", AMULET)
+                .priority(725).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Woolly scarf - provides warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.BOBBLE_SCARF, "Bobble scarf", AMULET)
+                .priority(720).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .providesWarmth().untradeable()
+                .description("Bobble scarf - provides warmth")
+                .build(),
+                
+            // High-level utility amulets (400-500) - NO warmth
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_FURY, "Amulet of fury", AMULET)
-                .priority(400).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .description("Excellent all-around stats")
+                .priority(450).category(WintertodtGearItem.GearCategory.UTILITY)
+                .description("Excellent all-around amulet - no warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.AMULET_OF_TORTURE, "Amulet of torture", AMULET)
+                .priority(430).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Strength bonus - no warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.OCCULT_NECKLACE, "Occult necklace", AMULET)
+                .priority(420).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Magic damage bonus - no warmth")
+                .build(),
+                
+            new WintertodtGearItem.Builder(ItemID.NECKLACE_OF_ANGUISH, "Necklace of anguish", AMULET)
+                .priority(410).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Ranged bonus - no warmth")
+                .build(),
+                
+            // Glory variants (340-399) - NO warmth
+            new WintertodtGearItem.Builder(ItemID.AMULET_OF_GLORY6, "Amulet of glory(6)", AMULET)
+                .priority(360).category(WintertodtGearItem.GearCategory.UTILITY)
+                .hasSpecialEffect()
+                .description("Teleportation amulet - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_GLORY4, "Amulet of glory(4)", AMULET)
                 .priority(350).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
-                .description("Teleportation and good stats")
+                .description("Teleportation amulet - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_GLORY3, "Amulet of glory(3)", AMULET)
                 .priority(345).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
+                .description("Teleportation amulet - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_GLORY2, "Amulet of glory(2)", AMULET)
                 .priority(340).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
+                .description("Teleportation amulet - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_GLORY1, "Amulet of glory(1)", AMULET)
                 .priority(335).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
+                .description("Teleportation amulet - no warmth")
+                .build(),
+                
+            // Games necklace - NO warmth
+            new WintertodtGearItem.Builder(ItemID.GAMES_NECKLACE8, "Games necklace(8)", AMULET)
+                .priority(440).category(WintertodtGearItem.GearCategory.UTILITY)
+                .hasSpecialEffect()
+                .description("Wintertodt teleport - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_POWER, "Amulet of power", AMULET)
                 .priority(250).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.MAGIC, 50)
+                .description("Balanced combat stats - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.AMULET_OF_STRENGTH, "Amulet of strength", AMULET)
                 .priority(150).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
-                .levelRequirement(Skill.MAGIC, 49)
+                .description("Strength bonus - no warmth")
                 .build()
         );
     }
@@ -991,7 +1307,7 @@ public class WintertodtGearDatabase {
                 .description("Ring of the elements - provides warmth")
                 .build(),
                 
-            // Utility rings (400-500)
+            // Utility rings (400-500) - NO warmth
             new WintertodtGearItem.Builder(ItemID.RING_OF_DUELING8, "Ring of dueling(8)", RING)
                 .priority(450).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
@@ -1001,15 +1317,10 @@ public class WintertodtGearDatabase {
             new WintertodtGearItem.Builder(ItemID.RING_OF_DUELING7, "Ring of dueling(7)", RING)
                 .priority(445).category(WintertodtGearItem.GearCategory.UTILITY)
                 .hasSpecialEffect()
+                .description("Useful teleportations - no warmth")
                 .build(),
                 
-            new WintertodtGearItem.Builder(ItemID.GAMES_NECKLACE8, "Games necklace(8)", RING)
-                .priority(440).category(WintertodtGearItem.GearCategory.UTILITY)
-                .hasSpecialEffect()
-                .description("Wintertodt teleport - no warmth")
-                .build(),
-                
-            // Combat rings (300-399)
+            // Combat rings (300-399) - NO warmth
             new WintertodtGearItem.Builder(ItemID.BERSERKER_RING, "Berserker ring", RING)
                 .priority(380).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
                 .description("Strength bonus - no warmth")
@@ -1033,6 +1344,7 @@ public class WintertodtGearDatabase {
                 
             new WintertodtGearItem.Builder(ItemID.INFERNAL_MAX_CAPE, "Infernal max cape", CAPE)
                 .priority(885).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HITPOINTS, 99) // Represents 99 in all skills
                 .untradeable().providesWarmth()
                 .description("Infernal max cape - provides warmth")
                 .build(),
@@ -1045,6 +1357,7 @@ public class WintertodtGearDatabase {
                 
             new WintertodtGearItem.Builder(ItemID.FIRE_MAX_CAPE, "Fire max cape", CAPE)
                 .priority(875).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HITPOINTS, 99) // Represents 99 in all skills
                 .untradeable().providesWarmth()
                 .description("Fire max cape - provides warmth")
                 .build(),
@@ -1058,6 +1371,7 @@ public class WintertodtGearDatabase {
             // Max capes (860-869) - All provide warmth
             new WintertodtGearItem.Builder(ItemID.MAX_CAPE, "Max cape", CAPE)
                 .priority(865).category(WintertodtGearItem.GearCategory.WARM_GEAR)
+                .levelRequirement(Skill.HITPOINTS, 99) // Represents 99 in all skills
                 .untradeable().providesWarmth()
                 .description("Max cape - provides warmth")
                 .build(),
@@ -1093,7 +1407,7 @@ public class WintertodtGearDatabase {
                 
             new WintertodtGearItem.Builder(ItemID.RAINBOW_CAPE, "Rainbow cape", CAPE)
                 .priority(770).category(WintertodtGearItem.GearCategory.WARM_GEAR)
-                .providesWarmth()
+                .providesWarmth().untradeable()
                 .description("Rainbow cape - provides warmth")
                 .build(),
                 
@@ -1108,17 +1422,18 @@ public class WintertodtGearDatabase {
             new WintertodtGearItem.Builder(ItemID.GRACEFUL_CAPE, "Graceful cape", CAPE)
                 .priority(500).category(WintertodtGearItem.GearCategory.GRACEFUL)
                 .weight(-4).untradeable()
-                .levelRequirement(Skill.AGILITY, 15)
                 .description("Weight reduction - does NOT provide warmth")
                 .build(),
                 
-            // Basic capes (50-200)
+            // Basic capes (50-200) - NO warmth
             new WintertodtGearItem.Builder(ItemID.PINK_CAPE, "Pink cape", CAPE)
                 .priority(50).category(WintertodtGearItem.GearCategory.FASHIONSCAPE)
+                .description("Basic cosmetic cape - no warmth")
                 .build(),
                 
             new WintertodtGearItem.Builder(ItemID.BLACK_CAPE, "Black cape", CAPE)
                 .priority(40).category(WintertodtGearItem.GearCategory.COMBAT_GEAR)
+                .description("Basic combat cape - no warmth")
                 .build()
         );
     }
