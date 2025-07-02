@@ -179,6 +179,83 @@ public class MKE_WintertodtOverlay extends OverlayPanel {
 
             addSeparator();
 
+            // Reward Cart Looting Status (only show if enabled)
+            if (config.enableRewardCartLooting()) {
+                panelComponent.getChildren().add(TitleComponent.builder()
+                        .text("Reward Cart Looting")
+                        .color(new Color(255, 215, 0)) // Gold color
+                        .build());
+
+                // Show current points
+                int currentRewards = MKE_WintertodtScript.currentRewardCartRewards;
+                panelComponent.getChildren().add(LineComponent.builder()
+                        .left("Cart Rewards:")
+                        .right(String.valueOf(currentRewards))
+                        .leftColor(Color.WHITE)
+                        .rightColor(currentRewards >= config.minimumRewardsForCollection() ? Color.GREEN : Color.YELLOW)
+                        .build());
+
+                // Show reward threshold (if calculated)
+                if (MKE_WintertodtScript.targetRewardThreshold > 0) {
+                    panelComponent.getChildren().add(LineComponent.builder()
+                            .left("Target Threshold:")
+                            .right(String.valueOf(MKE_WintertodtScript.targetRewardThreshold))
+                            .leftColor(Color.WHITE)
+                            .rightColor(Color.CYAN)
+                            .build());
+                }
+
+                // Show looting status
+                if (MKE_WintertodtScript.isLootingRewards) {
+                    String rewardStatus = "Collecting Rewards";
+                    Color rewardColor = new Color(255, 215, 0); // Gold color
+                    
+                    // Show specific state if in reward cart states
+                    switch (MKE_WintertodtScript.state) {
+                        case EXITING_FOR_REWARDS:
+                            rewardStatus = "Exiting Wintertodt";
+                            rewardColor = Color.ORANGE;
+                            break;
+                        case WALKING_TO_REWARDS_BANK:
+                            rewardStatus = "Walking to Bank";
+                            rewardColor = Color.CYAN;
+                            break;
+                        case BANKING_FOR_REWARDS:
+                            rewardStatus = "Banking Items";
+                            rewardColor = Color.BLUE;
+                            break;
+                        case WALKING_TO_REWARD_CART:
+                            rewardStatus = "Walking to Cart";
+                            rewardColor = Color.MAGENTA;
+                            break;
+                        case LOOTING_REWARD_CART:
+                            rewardStatus = "Looting Cart";
+                            rewardColor = Color.GREEN;
+                            break;
+                        case RETURNING_FROM_REWARDS:
+                            rewardStatus = "Finishing Up";
+                            rewardColor = Color.YELLOW;
+                            break;
+                    }
+                    
+                    panelComponent.getChildren().add(LineComponent.builder()
+                            .left("Reward Status:")
+                            .right(rewardStatus)
+                            .leftColor(Color.WHITE)
+                            .rightColor(rewardColor)
+                            .build());
+                } else {
+                    panelComponent.getChildren().add(LineComponent.builder()
+                            .left("Reward Status:")
+                            .right("Monitoring")
+                            .leftColor(Color.WHITE)
+                            .rightColor(Color.GREEN)
+                            .build());
+                }
+
+                addSeparator();
+            }
+
             // AI Decision Making Panel
             panelComponent.getChildren().add(TitleComponent.builder()
                     .text("AI Decision Process")
@@ -371,6 +448,19 @@ public class MKE_WintertodtOverlay extends OverlayPanel {
                 return new Color(144, 238, 144); // Light green
             case MAKE_POTIONS:
                 return new Color(255, 165, 0); // Orange
+            // Reward Cart Looting States
+            case EXITING_FOR_REWARDS:
+                return new Color(255, 215, 0); // Gold
+            case WALKING_TO_REWARDS_BANK:
+                return new Color(255, 140, 0); // Dark orange
+            case BANKING_FOR_REWARDS:
+                return new Color(30, 144, 255); // Dodger blue
+            case WALKING_TO_REWARD_CART:
+                return new Color(255, 20, 147); // Deep pink
+            case LOOTING_REWARD_CART:
+                return new Color(50, 205, 50); // Lime green
+            case RETURNING_FROM_REWARDS:
+                return new Color(255, 255, 0); // Yellow
             default:
                 return Color.WHITE;
         }

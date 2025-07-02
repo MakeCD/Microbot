@@ -28,6 +28,7 @@ import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.WintertodtSta
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtAxeManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtGearManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.location.WintertodtLocationManager;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.inventory.WintertodtInventoryManager;
 
 import java.awt.Point;
 import java.util.ArrayList;
@@ -97,17 +98,23 @@ public class MKE_WintertodtScript extends Script {
     
     // Startup system
     private WintertodtStartupManager startupManager;
+    private WintertodtInventoryManager inventoryManager;
     
     // Custom break management system
     private WintertodtBreakManager breakManager;
 
     // World locations for key areas
-    private final WorldPoint BOSS_ROOM = new WorldPoint(1630, 3982, 0);
+    private final WorldPoint BOSS_ROOM = new WorldPoint(1630, 3976, 0);
     private final WorldPoint CRATE_LOCATION = new WorldPoint(1634, 3982, 0);
     private final WorldPoint CRATE_STAND_LOCATION = new WorldPoint(1633, 3982, 0);
     private final WorldPoint SPROUTING_ROOTS = new WorldPoint(1635, 3978, 0);
     private final WorldPoint SPROUTING_ROOTS_STAND = new WorldPoint(1634, 3978, 0);
     private final WorldPoint BANK_LOCATION = new WorldPoint(1640, 3944, 0);
+
+    // Reward Cart Looting Locations
+    private final WorldPoint REWARD_CART_WEST = new WorldPoint(1635, 3944, 0);
+    private final WorldPoint REWARD_CART_EAST = new WorldPoint(1637, 3944, 0);
+    private final WorldPoint REWARD_CART_CENTER = new WorldPoint(1636, 3944, 0);
 
     // Game state tracking
     private GameObject currentBrazier;
@@ -194,6 +201,23 @@ public class MKE_WintertodtScript extends Script {
 
     // ────────────── HEALING STRATEGY VARIABLES ──────────────────────────────────
     private boolean usesPotions = false;
+
+    // ────────────── REWARD CART LOOTING VARIABLES ────────────────────────────────
+    public static boolean isLootingRewards = false;
+    public static int targetRewardThreshold = 0; // Calculated with gaussian random
+    public static int currentRewardCartRewards = 0; // Rewards owed from chat message
+    /**
+     * Flag that indicates the current reward cart has been fully emptied. We
+     * use this to avoid needlessly walking back to the cart after we have
+     * already confirmed that there are no rewards left.
+     */
+    private static boolean rewardCartExhausted = false;
+    private long lastRewardCartInteraction = 0;
+    private boolean wasInWintertodtBeforeRewards = false;
+    private static final String REWARD_CART_NO_REWARDS_TEXT = "There are no rewards here for you.";
+    private static final String REWARD_CART_FINISHED_TEXT = "You think you've taken as much as you're owed from the reward";
+    private static final int REWARD_CART_WIDGET_PARENT = 229;
+    private static final int REWARD_CART_WIDGET_CHILD = 1;
 
     /* Default round length (ms) used until we have real data */
     private static final long DEFAULT_ROUND_DURATION_MS = 250_000;
@@ -709,6 +733,45 @@ public class MKE_WintertodtScript extends Script {
                 lastFeedingAnimationTime = 0;
             }
         }
+
+        // Handle reward cart rewards tracking
+        if (message.contains("You're now owed") && message.contains("rewards")) {
+            parseRewardCartMessage(message);
+        }
+    }
+
+    /**
+     * Parses reward cart message to extract the number of rewards owed
+     * Message format: "You're owed an additional X rewards from the reward cart. You're now owed Y rewards."
+     */
+    private static void parseRewardCartMessage(String message) {
+        try {
+            // Look for the pattern "You're now owed X rewards"
+            String[] parts = message.split("You're now owed ");
+            if (parts.length >= 2) {
+                String rewardPart = parts[1].trim();
+                // Extract the number before " reward" or " rewards"
+                String[] rewardSplit = rewardPart.split(" reward");
+                if (rewardSplit.length >= 1) {
+                    String numberStr = rewardSplit[0].trim();
+                    int newRewardCount = Integer.parseInt(numberStr);
+                    
+                    if (newRewardCount != currentRewardCartRewards) {
+                        int previousRewards = currentRewardCartRewards;
+                        currentRewardCartRewards = newRewardCount;
+                        
+                        Microbot.log("Reward Cart: " + previousRewards + " -> " + currentRewardCartRewards + " rewards owed");
+                        
+                        // Calculate threshold if not set yet
+                        if (targetRewardThreshold == 0) {
+                            calculateRewardThreshold();
+                        }
+                    }
+                }
+            }
+        } catch (Exception e) {
+            Microbot.log("Failed to parse reward cart message: " + message + " - " + e.getMessage());
+        }
     }
 
     /**
@@ -730,6 +793,12 @@ public class MKE_WintertodtScript extends Script {
     private static void changeState(State newState, boolean lock) {
         // Prevent state changes if currently locked or trying to change to same state
         if (state == newState || lockState) {
+            return;
+        }
+        
+        // Prevent reward cart states from being overridden by non-reward states
+        if (isLootingRewards && isRewardCartState(state) && !isRewardCartState(newState)) {
+            System.out.println("Reward cart state change blocked: " + state + " -> " + newState + " (reward looting in progress)");
             return;
         }
 
@@ -849,6 +918,7 @@ public class MKE_WintertodtScript extends Script {
         
         // Initialize startup manager
         startupManager = new WintertodtStartupManager(config);
+        inventoryManager = startupManager.getInventoryManager();
         
         // Initialize break manager
         breakManager = new WintertodtBreakManager(config);
@@ -936,7 +1006,7 @@ public class MKE_WintertodtScript extends Script {
             } catch (Exception ex) {
                 handleScriptException(ex);
             }
-        }, 0, 80, TimeUnit.MILLISECONDS); // Slightly slower for more human-like behavior
+        }, 0, 60, TimeUnit.MILLISECONDS);
 
         return true;
     }
@@ -1047,6 +1117,14 @@ public class MKE_WintertodtScript extends Script {
         
         // Reset world checking flag
         worldChecked = false;
+        
+        // Reset reward cart looting variables
+        isLootingRewards = false;
+        targetRewardThreshold = 0;
+        currentRewardCartRewards = 0;
+        rewardCartExhausted = false;
+        lastRewardCartInteraction = 0;
+        wasInWintertodtBeforeRewards = false;
         
         Microbot.log("All script state variables reset to default values");
     }
@@ -1494,27 +1572,27 @@ public class MKE_WintertodtScript extends Script {
         try
         {
             /* ---------- decide yaw delta -------------------------------- */
-            //  μ = 0°,  σ = 15°  →  68 % of moves within ±15°, rarely >±45°
-            int yawDelta = (int) Math.round(random.nextGaussian() * 15);
-            yawDelta = Math.max(-60, Math.min(60, yawDelta));      // clamp
+            //  μ = 0°,  σ = 20°  →  68 % of moves within ±20°, rarely >±60°
+            int yawDelta = (int) Math.round(random.nextGaussian() * 20);
+            yawDelta = Math.max(-75, Math.min(75, yawDelta));      // clamp
 
             // 25 % chance to flip direction to make "about face" rarer
             if (yawDelta == 0 || (Math.abs(yawDelta) < 10 && random.nextInt(4) == 0))
             {
-                yawDelta = (random.nextBoolean() ? 1 : -1) * (10 + random.nextInt(10));
+                yawDelta = (random.nextBoolean() ? 1 : -1) * (12 + random.nextInt(15));
             }
 
             int targetYaw = (Rs2Camera.getAngle() + yawDelta + 360) % 360;
 
             /* ---------- decide if we also adjust pitch ------------------ */
-            boolean changePitch = random.nextInt(100) < 35;   // 35 % of the time
+            boolean changePitch = random.nextInt(100) < 42;   // 42 % of the time
             float   targetPitchPct = Rs2Camera.cameraPitchPercentage();
 
             if (changePitch)
             {
-                // μ = 0, σ = 8 % of full range, clamped to 35 – 85 %
-                float deltaPct = (float) (random.nextGaussian() * 0.08);
-                targetPitchPct = Math.max(0.35f, Math.min(0.85f, targetPitchPct + deltaPct));
+                // μ = 0, σ = 10 % of full range, clamped to 30 – 90 %
+                float deltaPct = (float) (random.nextGaussian() * 0.10);
+                targetPitchPct = Math.max(0.30f, Math.min(0.90f, targetPitchPct + deltaPct));
             }
 
             /* ---------- make the movement with key taps ----------------- */
@@ -1690,6 +1768,12 @@ public class MKE_WintertodtScript extends Script {
         // Update game state
         gameState = analyzeGameState();
 
+        // Check if we should trigger reward cart looting (only if not already looting)
+        if (!isLootingRewards && shouldLootRewardCart()) {
+            startRewardCartLooting();
+            return; // Let the reward cart states handle everything
+        }
+
         // Handle potion creation if needed - but don't return early
         if (gameState.needPotions && usesPotions && 
             state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS) {
@@ -1864,6 +1948,24 @@ public class MKE_WintertodtScript extends Script {
             case WALKING_TO_SAFE_SPOT_FOR_BREAK:
                 handleWalkingToSafeSpotForBreakState(gameState);
                 break;
+            case EXITING_FOR_REWARDS:
+                handleExitingForRewardsState(gameState);
+                break;
+            case WALKING_TO_REWARDS_BANK:
+                handleWalkingToRewardsBankState(gameState);
+                break;
+            case BANKING_FOR_REWARDS:
+                handleBankingForRewardsState(gameState);
+                break;
+            case WALKING_TO_REWARD_CART:
+                handleWalkingToRewardCartState(gameState);
+                break;
+            case LOOTING_REWARD_CART:
+                handleLootingRewardCartState(gameState);
+                break;
+            case RETURNING_FROM_REWARDS:
+                handleReturningFromRewardsState(gameState);
+                break;
         }
     }
 
@@ -1942,8 +2044,8 @@ public class MKE_WintertodtScript extends Script {
 
             // Navigate to boss room
             if (!gameState.wintertodtRespawning && !gameState.isWintertodtAlive) {
-                if (Rs2Player.getWorldLocation().distanceTo(BOSS_ROOM) > 10) {
-                    Rs2Walker.walkTo(BOSS_ROOM, 8);
+                if (Rs2Player.getWorldLocation().distanceTo(BOSS_ROOM) > 8) {
+                    Rs2Walker.walkTo(BOSS_ROOM, 4);
                     Rs2Player.waitForWalking();
                 }
             } else {
@@ -2115,6 +2217,9 @@ public class MKE_WintertodtScript extends Script {
             
             /* ---------- PRIORITY BLOCK 1: FIX BROKEN BRAZIER FIRST ----------- */
             if (gameState.brokenBrazier != null && config.fixBrazier()) {
+
+                sleepGaussian(200, 150);
+
                 // Stop fletching temporarily to fix brazier
                 if (fletchingState.isActive()) {
                     fletchingState.stopFletching(FletchingInterruptType.BRAZIER_BROKEN);
@@ -2134,6 +2239,8 @@ public class MKE_WintertodtScript extends Script {
             /* ---------- PRIORITY BLOCK 2: RELIGHT BRAZIER SECOND ------------ */
             if (gameState.burningBrazier == null && gameState.brazier != null && 
                 config.relightBrazier() && gameState.isWintertodtAlive) {
+
+                sleepGaussian(200, 150);
                 
                 // Stop fletching temporarily to relight brazier
                 if (fletchingState.isActive()) {
@@ -2379,7 +2486,7 @@ public class MKE_WintertodtScript extends Script {
 
             // If we're outside, enter the game room first
             if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 3) {
-                Rs2Walker.walkTo(CRATE_STAND_LOCATION, 3);
+                Rs2Walker.walkTo(CRATE_STAND_LOCATION, 1);
                 Rs2Player.waitForWalking();
                 return;
             }
@@ -2452,7 +2559,7 @@ public class MKE_WintertodtScript extends Script {
 
             // If we're outside, enter the game room first
             if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 3) {
-                Rs2Walker.walkTo(SPROUTING_ROOTS_STAND, 3);
+                Rs2Walker.walkTo(SPROUTING_ROOTS_STAND, 1);
                 Rs2Player.waitForWalking();
                 return;
             }
@@ -2648,7 +2755,7 @@ public class MKE_WintertodtScript extends Script {
                         
                         if (Rs2Inventory.moveItemToSlot(potion, targetSlot)) {
                             sleepUntilTrue(() -> Rs2Inventory.slotContains(targetSlot, potion.getName()), 100, 2000);
-                            sleepGaussian(300, 100); // Small delay between moves for natural behavior
+                            sleepGaussian(50, 20); // Small delay between moves for natural behavior
                         }
                     } else {
                         Microbot.log("Target slot " + targetSlot + " is occupied by " + slotItem.getName() + ", skipping to next slot");
@@ -2692,14 +2799,14 @@ public class MKE_WintertodtScript extends Script {
             
             // Drop extra concoctions
             if (Rs2Inventory.hasItem(ItemID.REJUVENATION_POTION_UNF)) {
-                Rs2Inventory.dropAll(ItemID.REJUVENATION_POTION_UNF);
                 sleepGaussian(300, 100);
+                Rs2Inventory.dropAll(ItemID.REJUVENATION_POTION_UNF);
             }
             
             // Drop extra herbs
             if (Rs2Inventory.hasItem(ItemID.BRUMA_HERB)) {
-                Rs2Inventory.dropAll(ItemID.BRUMA_HERB);
                 sleepGaussian(300, 100);
+                Rs2Inventory.dropAll(ItemID.BRUMA_HERB);
             }
             
             int finalPotions = getTotalRejuvenationPotions();
@@ -2737,21 +2844,21 @@ public class MKE_WintertodtScript extends Script {
                 /* Always deselect knife before eating */
                 if (isKnifeSelected()) {
                     deselectSelectedItem();
-                    sleepGaussian(200, 50);  // Small delay to ensure deselection
+                    sleepGaussian(100, 50);  // Small delay to ensure deselection
                 }
 
                 if (usesPotions) {
                     List<Rs2ItemModel> rejuvenationPotions = Rs2Inventory.getPotions();
                     if (!rejuvenationPotions.isEmpty()) {
                         Rs2Inventory.interact(rejuvenationPotions.get(0), "Drink");
-                        sleepGaussian(600, 150);
+                        sleepGaussian(300, 100);
                         plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
                         resetActions = true;
                         return true;
                     }
                 } else {
                     if (Rs2Player.useFood()) {
-                        sleepGaussian(600, 150);
+                        sleepGaussian(300, 100);
                         plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
                         Rs2Inventory.dropAll("jug");
                         resetActions = true;
@@ -2881,22 +2988,22 @@ public class MKE_WintertodtScript extends Script {
         try {
             // Drop knife if fletching is disabled
             if (!config.fletchRoots() && Rs2Inventory.hasItem(ItemID.KNIFE)) {
-                Rs2Inventory.drop(ItemID.KNIFE);
                 sleepGaussian(300, 100);
+                Rs2Inventory.drop(ItemID.KNIFE);
             }
 
             // Drop hammer if fixing is disabled
             if (!config.fixBrazier() && Rs2Inventory.hasItem(ItemID.HAMMER)) {
-                Rs2Inventory.drop(ItemID.HAMMER);
                 sleepGaussian(300, 100);
+                Rs2Inventory.drop(ItemID.HAMMER);
             }
 
             // Drop tinderbox if using bruma torch
             if ((Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) ||
                     Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND)) &&
                     Rs2Inventory.hasItem(ItemID.TINDERBOX)) {
-                Rs2Inventory.drop(ItemID.TINDERBOX);
                 sleepGaussian(300, 100);
+                Rs2Inventory.drop(ItemID.TINDERBOX);
             }
 
         } catch (Exception e) {
@@ -2917,7 +3024,7 @@ public class MKE_WintertodtScript extends Script {
                 Rs2Player.waitForWalking();
             } else if (distance > 2) {
                 Rs2Walker.walkFastCanvas(brazierLocation);
-                sleepGaussian(GAME_TICK_LENGTH, 100);
+                sleepGaussian(400, 100);
             }
 
         } catch (Exception e) {
@@ -3030,7 +3137,7 @@ public class MKE_WintertodtScript extends Script {
                 // Before leaving bank, always check if we can upgrade our gear
                 if (Rs2Bank.isOpen()) {
                     checkAndUpgradeGear();
-                    depositUnnecessaryItems(); // Always clean inventory after potential gear swaps
+                    inventoryManager.setupInventory();
                 }
                 changeState(State.ENTER_ROOM);
                 return true;
@@ -3051,15 +3158,12 @@ public class MKE_WintertodtScript extends Script {
             Rs2Bank.useBank();
             if (!Rs2Bank.isOpen()) return true;
 
-            // ALWAYS check and upgrade gear when banking
+            // ALWAYS check and upgrade gear when banking, then set up inventory
             checkAndUpgradeGear();
-            depositUnnecessaryItems(); // Clean inventory after gear swaps and before withdrawing
+            inventoryManager.setupInventory();
 
             // Count current food
             int currentFoodCount = (int) Rs2Inventory.getInventoryFood().stream().count();
-
-            // Withdraw required items
-            withdrawRequiredItems();
 
             // Check food availability
             if (!Rs2Bank.hasBankItem(config.food().getName(), config.foodAmount(), true)) {
@@ -3085,45 +3189,6 @@ public class MKE_WintertodtScript extends Script {
         }
     }
 
-    /**
-     * Withdraws required items with automatic axe handling.
-     */
-    private void withdrawRequiredItems() {
-        try {
-            // Get automatic axe decision
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            
-            // Withdraw hammer for fixing
-            if (config.fixBrazier() && !Rs2Inventory.hasItem("hammer")) {
-                Rs2Bank.withdrawX(true, "hammer", 1);
-                sleepGaussian(300, 100);
-            }
-
-            // Withdraw tinderbox if needed (no bruma torch equipped)
-            if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) &&
-                    !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) &&
-                    !Rs2Inventory.hasItem("tinderbox")) {
-                Rs2Bank.withdrawX(true, "tinderbox", 1, true);
-                sleepGaussian(300, 100);
-            }
-
-            // Withdraw knife for fletching
-            if (config.fletchRoots() && !Rs2Inventory.hasItem("knife")) {
-                Rs2Bank.withdrawX(true, "knife", 1, true);
-                sleepGaussian(300, 100);
-            }
-
-            // Handle axe based on automatic decision
-            if (axeDecision.shouldKeepInInventory() && !Rs2Inventory.hasItem(axeDecision.getAxeId())) {
-                Rs2Bank.withdrawX(true, axeDecision.getAxeName(), 1);
-                sleepGaussian(300, 100);
-                Microbot.log("Withdrew axe for inventory: " + axeDecision.getAxeName());
-            }
-
-        } catch (Exception e) {
-            System.err.println("Error withdrawing required items: " + e.getMessage());
-        }
-    }
 
     /**
      * Gets the current warmth level from the game interface.
@@ -3503,7 +3568,7 @@ public class MKE_WintertodtScript extends Script {
             this.shutdown();
             
             // Wait a moment for shutdown to process
-            sleepGaussian(1000, 200);
+            sleepGaussian(3000, 500);
             
             // Logout the player
             if (Microbot.isLoggedIn()) {
@@ -3829,7 +3894,7 @@ public class MKE_WintertodtScript extends Script {
             
             // Move mouse offscreen after round ends (do this once per round)
             if (!mouseMovedOffscreenForRound && timeUntilStart > 10000) { // More than 10 seconds left
-                sleepGaussian(1000, 800);
+                sleepGaussian(2000, 1200);
                 Rs2Antiban.moveMouseOffScreen(85);
                 mouseMovedOffscreenForRound = true;
             }
@@ -4121,7 +4186,7 @@ public class MKE_WintertodtScript extends Script {
         if (Rs2Inventory.isItemSelected())
         {
             Rs2Inventory.interact(Rs2Inventory.getSelectedItemId(), "Use");
-            sleepGaussian(120, 40);
+            sleepGaussian(80, 40);
         }
     }
     // -------------------------------------------------------------------------
@@ -4436,7 +4501,7 @@ public class MKE_WintertodtScript extends Script {
             Rs2GameObject.hoverOverObject(spamClickTarget);
             
             // Small delay between hover and click for realism
-            sleepGaussian(20, 10);
+            sleepGaussian(60, 40);
 
             Microbot.log("Spam clicking on: " + spamClickTarget.getId());
             
@@ -4503,6 +4568,163 @@ public class MKE_WintertodtScript extends Script {
         }
     }
 
+    // ────────────── REWARD CART STATE HANDLERS ──────────────────────────────────
+
+    /**
+     * Handles exiting Wintertodt for reward collection
+     */
+    private void handleExitingForRewardsState(GameState gameState) {
+        try {
+            if (!attemptLeaveWintertodt()) {
+                return; // Still inside, try again next tick
+            }
+            
+            Microbot.log("Successfully exited Wintertodt for reward collection");
+            changeState(State.WALKING_TO_REWARDS_BANK);
+            
+        } catch (Exception e) {
+            System.err.println("Error exiting for rewards: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback to normal execution
+        }
+    }
+
+    /**
+     * Handles walking to bank for reward collection preparation
+     */
+    private void handleWalkingToRewardsBankState(GameState gameState) {
+        try {
+            WorldPoint playerLocation = Rs2Player.getWorldLocation();
+            
+            if (playerLocation.distanceTo(BANK_LOCATION) > 6) {
+                Rs2Walker.walkTo(BANK_LOCATION);
+                Rs2Player.waitForWalking();
+            } else if (playerLocation.distanceTo(BANK_LOCATION) <= 6 && playerLocation.distanceTo(BANK_LOCATION) > 1) {
+                Rs2Walker.walkFastCanvas(BANK_LOCATION);
+                Rs2Player.waitForWalking();
+            } else {
+                Microbot.log("Arrived at bank for reward collection");
+                changeState(State.BANKING_FOR_REWARDS);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error walking to rewards bank: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback
+        }
+    }
+
+    /**
+     * Handles banking all items before reward collection
+     */
+    private void handleBankingForRewardsState(GameState gameState) {
+        try {
+            if (!Rs2Bank.isOpen()) {
+                Rs2Bank.openBank();
+                sleepGaussian(600, 100);
+                return;
+            }
+
+            // Bank all items for clean inventory
+            if (!Rs2Inventory.isEmpty()) {
+                Rs2Bank.depositAll();
+                sleepGaussian(600, 100);
+                Microbot.log("Deposited all items for reward collection");
+                return;
+            }
+
+            // Close bank and proceed to reward cart
+            Rs2Bank.closeBank();
+            sleepGaussian(300, 50);
+            if (rewardCartExhausted || currentRewardCartRewards <= 0) {
+                // No more rewards to claim – finish up
+                changeState(State.RETURNING_FROM_REWARDS);
+            } else {
+                // Still owed rewards, go back for another inventory
+                changeState(State.WALKING_TO_REWARD_CART);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error banking for rewards: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback
+        }
+    }
+
+    /**
+     * Handles walking to reward cart location
+     */
+    private void handleWalkingToRewardCartState(GameState gameState) {
+        try {
+            WorldPoint targetTile = getRewardCartTile();
+            WorldPoint playerLocation = Rs2Player.getWorldLocation();
+            
+            if (playerLocation.distanceTo(targetTile) > 1) {
+                Rs2Walker.walkFastCanvas(targetTile);
+                Rs2Player.waitForWalking();
+            } else {
+                Microbot.log("Arrived at reward cart location");
+                changeState(State.LOOTING_REWARD_CART);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error walking to reward cart: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback
+        }
+    }
+
+    /**
+     * Handles the actual reward cart looting process
+     */
+    private void handleLootingRewardCartState(GameState gameState) {
+        try {
+            // Check if looting is finished based on widget text
+            if (isRewardCartLootingFinished()) {
+                rewardCartExhausted = true;
+                currentRewardCartRewards = 0; // ensure counter reset immediately
+                Microbot.log("Reward cart looting finished - no more rewards available");
+                changeState(State.RETURNING_FROM_REWARDS);
+                return;
+            }
+
+            // If inventory is full, go bank and return
+            if (Rs2Inventory.isFull()) {
+                Microbot.log("Inventory full - banking rewards and returning");
+                changeState(State.WALKING_TO_REWARDS_BANK);
+                return;
+            }
+
+            // If we haven't interacted recently or interaction is complete, interact again
+            if (lastRewardCartInteraction == 0 || isRewardCartInteractionComplete()) {
+                if (interactWithRewardCart()) {
+                    sleepGaussian(1000, 800); // Wait a bit after interaction
+                    Rs2Antiban.moveMouseOffScreen(60);
+                }
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error looting reward cart: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback
+        }
+    }
+
+    /**
+     * Handles returning from reward collection
+     */
+    private void handleReturningFromRewardsState(GameState gameState) {
+        try {
+            // If we still have items, go bank them first
+            if (!Rs2Inventory.isEmpty()) {
+                changeState(State.WALKING_TO_REWARDS_BANK);
+                return;
+            }
+
+            // All rewards collected and banked, finish the sequence
+            finishRewardCartLooting();
+            
+        } catch (Exception e) {
+            System.err.println("Error returning from rewards: " + e.getMessage());
+            finishRewardCartLooting(); // Fallback
+        }
+    }
+
     /**
      * Checks if the script should pause due to break system.
      *
@@ -4529,6 +4751,185 @@ public class MKE_WintertodtScript extends Script {
             return true;
         }
 
+        return false;
+    }
+
+    // ────────────── REWARD CART LOOTING METHODS ──────────────────────────────────
+
+    /**
+     * Checks if a state is a reward cart looting state
+     */
+    private static boolean isRewardCartState(State state) {
+        return state == State.EXITING_FOR_REWARDS ||
+               state == State.WALKING_TO_REWARDS_BANK ||
+               state == State.BANKING_FOR_REWARDS ||
+               state == State.WALKING_TO_REWARD_CART ||
+               state == State.LOOTING_REWARD_CART ||
+               state == State.RETURNING_FROM_REWARDS;
+    }
+
+    /**
+     * Checks if we should trigger reward cart looting based on rewards and configuration
+     */
+    private boolean shouldLootRewardCart() {
+        if (!config.enableRewardCartLooting() || isLootingRewards) {
+            return false;
+        }
+
+        // Only check for rewards during safe states
+        if (!isSafeStateForRewardLooting()) {
+            return false;
+        }
+
+        // Calculate threshold with gaussian random if not set
+        if (targetRewardThreshold == 0) {
+            calculateRewardThreshold();
+        }
+
+        return currentRewardCartRewards >= targetRewardThreshold;
+    }
+
+    /**
+     * Calculates the reward threshold with gaussian random variance
+     */
+    private static void calculateRewardThreshold() {
+        if (config == null) {
+            targetRewardThreshold = 3; // Default fallback
+            return;
+        }
+        
+        int baseRewards = config.minimumRewardsForCollection();
+        int variance = config.rewardsVariance();
+        
+        // Generate gaussian random number (-1 to 1) and scale by variance
+        Random staticRandom = new Random();
+        double gaussianRandom = staticRandom.nextGaussian();
+        int randomVariance = (int) (gaussianRandom * variance);
+        
+        targetRewardThreshold = Math.max(1, baseRewards + randomVariance); // Minimum 1 reward
+        
+        Microbot.log("Reward cart threshold set to: " + targetRewardThreshold + " rewards (base: " + baseRewards + ", variance: " + randomVariance + ")");
+    }
+
+    /**
+     * Checks if current state is safe for starting reward cart looting
+     */
+    private boolean isSafeStateForRewardLooting() {
+        return state == State.BANKING || 
+               state == State.WAITING || 
+               state == State.ENTER_ROOM ||
+               state == State.WALKING_TO_SAFE_SPOT_FOR_BREAK;
+    }
+
+    /**
+     * Initiates the reward cart looting sequence
+     */
+    private void startRewardCartLooting() {
+        isLootingRewards = true;
+        rewardCartExhausted = false;
+        wasInWintertodtBeforeRewards = isInsideWintertodtArea();
+        
+        Microbot.log("Starting reward cart looting sequence - current rewards: " + currentRewardCartRewards + "/" + targetRewardThreshold);
+        
+        if (wasInWintertodtBeforeRewards) {
+            changeState(State.EXITING_FOR_REWARDS);
+        } else {
+            changeState(State.WALKING_TO_REWARDS_BANK);
+        }
+    }
+
+    /**
+     * Completes the reward cart looting and returns to normal execution
+     */
+    private void finishRewardCartLooting() {
+        isLootingRewards = false;
+        rewardCartExhausted = false;
+        targetRewardThreshold = 0; // Reset for next time
+        
+        Microbot.log("Reward cart looting completed - returning to normal execution");
+
+        currentRewardCartRewards = 0;
+        
+        // Return to banking to organize inventory and continue normal script
+        changeState(State.BANKING);
+    }
+
+    /**
+     * Checks if reward cart looting is finished by reading widget text
+     */
+    private boolean isRewardCartLootingFinished() {
+        String widgetText = Rs2Widget.getChildWidgetText(REWARD_CART_WIDGET_PARENT, REWARD_CART_WIDGET_CHILD);
+        
+        if (widgetText != null) {
+            return widgetText.contains(REWARD_CART_NO_REWARDS_TEXT) || 
+                   widgetText.contains(REWARD_CART_FINISHED_TEXT);
+        }
+        
+        return false;
+    }
+
+    /**
+     * Gets a suitable tile near the reward cart for interaction
+     */
+    private WorldPoint getRewardCartTile() {
+        WorldPoint playerLocation = Rs2Player.getWorldLocation();
+        
+        // Choose the closest available tile
+        WorldPoint[] rewardCartTiles = {REWARD_CART_CENTER, REWARD_CART_WEST, REWARD_CART_EAST};
+        
+        WorldPoint closestTile = REWARD_CART_CENTER;
+        int shortestDistance = Integer.MAX_VALUE;
+        
+        for (WorldPoint tile : rewardCartTiles) {
+            int distance = playerLocation.distanceTo(tile);
+            if (distance < shortestDistance) {
+                shortestDistance = distance;
+                closestTile = tile;
+            }
+        }
+        
+        return closestTile;
+    }
+
+    /**
+     * Handles the reward cart interaction and looting
+     */
+    private boolean interactWithRewardCart() {
+
+        lastRewardCartInteraction = System.currentTimeMillis();
+
+        // Try to interact with reward cart by searching for the "Reward" text on the object
+        if (Rs2GameObject.interact("Reward", "Big-search", false)) {
+            Microbot.status = "Interacting with reward cart";
+            return true;
+        }
+
+        Microbot.status = "No reward cart found to interact with";
+        return false;
+    }
+
+    /**
+     * Checks if player has stopped animating for long enough or inventory is full
+     */
+    private boolean isRewardCartInteractionComplete() {
+        long timeSinceInteraction = System.currentTimeMillis() - lastRewardCartInteraction;
+        
+        // If inventory is full, interaction is complete
+        if (Rs2Inventory.isFull()) {
+            return true;
+        }
+        
+        // If player hasn't been animating for 1+ seconds, interaction is complete
+        if (!Rs2Player.isAnimating(1000) && timeSinceInteraction > 2000) {
+            return true;
+        }
+
+        // Timeout after 30 seconds
+        if (timeSinceInteraction > 30000) {
+            Microbot.log("Reward cart interaction timeout");
+            return true;
+        }
+        
         return false;
     }
 }

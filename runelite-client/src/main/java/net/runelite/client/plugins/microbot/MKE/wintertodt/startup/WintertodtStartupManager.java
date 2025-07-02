@@ -260,6 +260,14 @@ public class WintertodtStartupManager {
     public String getStatusMessage() { return statusMessage; }
     
     /**
+     * Exposes the inventory manager instance used by the startup manager.
+     * @return The WintertodtInventoryManager instance.
+     */
+    public WintertodtInventoryManager getInventoryManager() {
+        return inventoryManager;
+    }
+    
+    /**
      * Resets the startup manager for a fresh run.
      */
     public void reset() {
@@ -369,7 +377,7 @@ public class WintertodtStartupManager {
         
         boolean hasAxe;
         if (axeDecision.shouldEquipAxe()) {
-            hasAxe = Rs2Equipment.hasEquipped(axeDecision.getAxeId());
+            hasAxe = Rs2Equipment.isWearing(axeDecision.getAxeId());
         } else {
             hasAxe = Rs2Inventory.hasItem(axeDecision.getAxeId());
         }

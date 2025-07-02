@@ -81,18 +81,20 @@ public class WintertodtInventoryManager {
                     return false;
                 }
             }
+
+            // Get automatic axe decision
+            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
             
-            // NEW: Deposit unnecessary items first
-            depositUnnecessaryItems();
+            // Deposit unnecessary items first
+            depositUnnecessaryItems(axeDecision);
 
             // Step 0: Handle bruma torch conversion if needed
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
             if (axeDecision.needsBrumaTorchConversion()) {
-                inventorySetupLog.add("🔥 Converting bruma torch to offhand version...");
+                inventorySetupLog.add("Converting bruma torch to offhand version...");
                 if (!WintertodtAxeManager.performBrumaTorchConversion()) {
-                    inventorySetupLog.add("❌ Failed to convert bruma torch");
+                    inventorySetupLog.add("Failed to convert bruma torch");
                 } else {
-                    inventorySetupLog.add("✅ Successfully converted bruma torch to offhand version");
+                    inventorySetupLog.add("Successfully converted bruma torch to offhand version");
                 }
             }
             
@@ -122,7 +124,7 @@ public class WintertodtInventoryManager {
      * NEW: Deposits any non-essential items from the inventory before setup.
      * This cleans up items unequipped during the gear swap phase.
      */
-    private void depositUnnecessaryItems() {
+    private void depositUnnecessaryItems(WintertodtAxeManager.AxeDecision axeDecision) {
         if (!Rs2Bank.isOpen()) {
             return;
         }
@@ -136,10 +138,10 @@ public class WintertodtInventoryManager {
         keepItems.add("knife");
         keepItems.add("hammer");
         keepItems.add("tinderbox");
-        
-        // Keep all possible axes, as we don't know which one we might have
-        for (int axeId : AXE_PRIORITY) {
-            keepItems.add(getAxeName(axeId).toLowerCase());
+
+        // Keep axe if it is in inventory
+        if (axeDecision.shouldKeepInInventory()) {
+            keepItems.add(axeDecision.getAxeName().toLowerCase());
         }
 
         // Keep food/potions
@@ -152,18 +154,18 @@ public class WintertodtInventoryManager {
         // Deposit everything except the essential items
         Rs2Bank.depositAllExcept(keepItems.toArray(new String[0]));
         sleepGaussian(600, 200); // Wait for deposits to process
-        inventorySetupLog.add("✅ Inventory cleaned successfully.");
+        inventorySetupLog.add("Inventory cleaned successfully.");
     }
     
     /**
      * Acquires all required tools with automatic axe handling.
      */
     private boolean acquireRequiredTools() {
-        inventorySetupLog.add("🛠️ Acquiring required tools with automatic axe detection...");
+        inventorySetupLog.add("Acquiring required tools with automatic axe detection...");
         
         // Get automatic axe decision
         WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-        inventorySetupLog.add("🪓 Axe decision: " + axeDecision.toString());
+        inventorySetupLog.add("Axe decision: " + axeDecision.toString());
         
         // Handle axe setup
         if (!handleAxeSetup(axeDecision)) {
@@ -178,7 +180,7 @@ public class WintertodtInventoryManager {
         // Handle knife if fletching enabled
             if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
             if (!Rs2Bank.withdrawX(ItemID.KNIFE, 1)) {
-                inventorySetupLog.add("❌ Failed to get knife for fletching");
+                inventorySetupLog.add("Failed to get knife for fletching");
                 return false;
             }
             inventorySetupLog.add("🔪 Acquired knife for fletching");
@@ -187,7 +189,7 @@ public class WintertodtInventoryManager {
         // Handle hammer if fixing enabled
             if (config.fixBrazier() && !Rs2Inventory.hasItem(ItemID.HAMMER)) {
             if (!Rs2Bank.withdrawX(ItemID.HAMMER, 1)) {
-                inventorySetupLog.add("❌ Failed to get hammer for fixing");
+                inventorySetupLog.add("Failed to get hammer for fixing");
                 return false;
             }
             inventorySetupLog.add("🔨 Acquired hammer for fixing");
@@ -205,32 +207,32 @@ public class WintertodtInventoryManager {
             if (!Rs2Equipment.hasEquipped(axeDecision.getAxeId())) {
                 if (Rs2Inventory.hasItem(axeDecision.getAxeId())) {
                     Rs2Inventory.wield(axeDecision.getAxeId());
-                    inventorySetupLog.add("⚔️ Equipped axe from inventory: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Equipped axe from inventory: " + axeDecision.getAxeName());
                 } else if (Rs2Bank.isOpen() && Rs2Bank.hasBankItem(axeDecision.getAxeId(),1)) {
                     Rs2Bank.withdrawAndEquip(axeDecision.getAxeId());
-                    inventorySetupLog.add("⚔️ Withdrew and equipped axe: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Withdrew and equipped axe: " + axeDecision.getAxeName());
                 } else {
-                    inventorySetupLog.add("❌ Cannot find axe to equip: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Cannot find axe to equip: " + axeDecision.getAxeName());
                     return false;
                 }
             } else {
-                inventorySetupLog.add("✅ Axe already equipped: " + axeDecision.getAxeName());
+                inventorySetupLog.add("Axe already equipped: " + axeDecision.getAxeName());
                 }
         } else {
             // Axe should be in inventory
             if (!Rs2Inventory.hasItem(axeDecision.getAxeId())) {
                 if (Rs2Equipment.hasEquipped(axeDecision.getAxeId())) {
                     Rs2Equipment.unEquip(EquipmentInventorySlot.WEAPON);
-                    inventorySetupLog.add("📦 Moved axe to inventory: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Moved axe to inventory: " + axeDecision.getAxeName());
                 } else if (Rs2Bank.isOpen() && Rs2Bank.hasBankItem(axeDecision.getAxeId(),1)) {
                     Rs2Bank.withdrawX(axeDecision.getAxeId(), 1);
-                    inventorySetupLog.add("📦 Withdrew axe to inventory: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Withdrew axe to inventory: " + axeDecision.getAxeName());
                 } else {
-                    inventorySetupLog.add("❌ Cannot find axe for inventory: " + axeDecision.getAxeName());
+                    inventorySetupLog.add("Cannot find axe for inventory: " + axeDecision.getAxeName());
                     return false;
                 }
             } else {
-                inventorySetupLog.add("✅ Axe already in inventory: " + axeDecision.getAxeName());
+                inventorySetupLog.add("Axe already in inventory: " + axeDecision.getAxeName());
             }
         }
         
@@ -244,26 +246,26 @@ public class WintertodtInventoryManager {
         // Check if we have bruma torch equipped/available (prioritize offhand)
         if (Rs2Equipment.hasEquipped(ItemID.BRUMA_TORCH_OFFHAND) || 
             Rs2Equipment.hasEquipped(ItemID.BRUMA_TORCH)) {
-            inventorySetupLog.add("🔥 Fire tool: Bruma torch equipped");
+            inventorySetupLog.add("Fire tool: Bruma torch equipped");
             return true;
         }
         
         // Check if we have bruma torch in inventory
         if (Rs2Inventory.hasItem(ItemID.BRUMA_TORCH_OFFHAND) ||
             Rs2Inventory.hasItem(ItemID.BRUMA_TORCH)) {
-            inventorySetupLog.add("🔥 Fire tool: Bruma torch in inventory");
+            inventorySetupLog.add("Fire tool: Bruma torch in inventory");
             return true;
         }
         
         // No bruma torch - need tinderbox
         if (!Rs2Inventory.hasItem(ItemID.TINDERBOX)) {
             if (!Rs2Bank.withdrawX(ItemID.TINDERBOX, 1)) {
-                inventorySetupLog.add("❌ Failed to get tinderbox for fire lighting");
+                inventorySetupLog.add("Failed to get tinderbox for fire lighting");
             return false;
             }
-            inventorySetupLog.add("🔥 Acquired tinderbox for fire lighting");
+            inventorySetupLog.add("Acquired tinderbox for fire lighting");
         } else {
-            inventorySetupLog.add("✅ Fire tool: Tinderbox in inventory");
+            inventorySetupLog.add("Fire tool: Tinderbox in inventory");
         }
         
         return true;
@@ -273,7 +275,7 @@ public class WintertodtInventoryManager {
      * Arranges tools optimally with automatic axe handling.
      */
     private boolean arrangeToolsOptimally() {
-        inventorySetupLog.add("🎯 Arranging tools optimally...");
+        inventorySetupLog.add("Arranging tools optimally...");
             
         // Get current axe decision
         WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
