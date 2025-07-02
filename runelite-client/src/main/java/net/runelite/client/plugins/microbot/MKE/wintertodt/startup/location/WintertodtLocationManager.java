@@ -111,7 +111,7 @@ public class WintertodtLocationManager {
         WorldPoint doorTile = new WorldPoint(1630, 3970, 0);
         if (Rs2Player.getWorldLocation().distanceTo(doorTile) > 4) {
             Microbot.log("Walking closer to Wintertodt exit door...");
-            Rs2Walker.walkTo(doorTile, 3);
+            Rs2Walker.walkTo(doorTile, 2);
             return false; // Continue next tick after walking
         }
 

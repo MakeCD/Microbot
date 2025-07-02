@@ -41,7 +41,6 @@ public class WintertodtBreakManager {
     private final Random random = new Random();
     
     // Break timing
-    private long lastBreakTime = 0;
     private long nextBreakCheck = 0;
     
     // Title management
@@ -55,7 +54,6 @@ public class WintertodtBreakManager {
     
     // AFK break data
     private Point originalMousePosition = null;
-    private boolean mouseOffscreen = false;
     
     // Safe locations for breaks
     public static final WorldPoint BANK_LOCATION = new WorldPoint(1640, 3944, 0);
@@ -113,6 +111,18 @@ public class WintertodtBreakManager {
         try {
             if (!config.enableCustomBreaks()) {
                 return false;
+            }
+            
+            // ----------------------------------------------------------------
+            // Prevent breaks while the script is in the middle of the reward
+            // cart collection flow.  Interrupting that sequence would leave
+            // the player stranded outside of the arena with an open bank or
+            // reward-cart interface.  We therefore just pause the break
+            // countdown until the main script returns to normal operation.
+            // ----------------------------------------------------------------
+            if (MKE_WintertodtScript.isLootingRewards ||
+                isInRewardCollectionState(MKE_WintertodtScript.state)) {
+                return false;    // do nothing – countdown remains frozen
             }
             
             long currentTime = System.currentTimeMillis();
@@ -226,8 +236,6 @@ public class WintertodtBreakManager {
         // Move mouse offscreen
         Microbot.naturalMouse.moveOffScreen(90);
         
-        lastBreakTime = System.currentTimeMillis();
-        
         // Update window title to show break status
         updateTitle();
         
@@ -246,8 +254,6 @@ public class WintertodtBreakManager {
         
         // Logout the player
         Rs2Player.logout();
-        
-        lastBreakTime = System.currentTimeMillis();
         
         // Update window title to show break status
         updateTitle();
@@ -275,7 +281,6 @@ public class WintertodtBreakManager {
     private void endAfkBreak() {
         afkBreakActive = false;
         breakActive = false;
-        mouseOffscreen = false;
         
         // Restore mouse position with some randomization
         if (originalMousePosition != null) {
@@ -589,7 +594,6 @@ public class WintertodtBreakManager {
         breakActive = false;
         afkBreakActive = false;
         logoutBreakActive = false;
-        mouseOffscreen = false;
         originalMousePosition = null;
         breakTimeRemaining = 0;
         
@@ -704,4 +708,28 @@ public class WintertodtBreakManager {
         
         Microbot.log("Break manager shutdown");
     }
+
+    // --------------------------------------------------------------------
+    // Reward cart recognition
+    /**
+     * Returns <code>true</code> when the main script is currently in any of
+     * the temporary states that are used for the Wintertodt reward-cart
+     * collection sequence.  While in these states we never want to begin a
+     * custom break because it would interrupt the banking / walking flow and
+     * could leave the player stuck outside of the arena.
+     */
+    private boolean isInRewardCollectionState(State state) {
+        switch (state) {
+            case EXITING_FOR_REWARDS:
+            case WALKING_TO_REWARDS_BANK:
+            case BANKING_FOR_REWARDS:
+            case WALKING_TO_REWARD_CART:
+            case LOOTING_REWARD_CART:
+            case RETURNING_FROM_REWARDS:
+                return true;
+            default:
+                return false;
+        }
+    }
+    // --------------------------------------------------------------------
 } 

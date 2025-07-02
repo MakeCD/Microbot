@@ -58,6 +58,13 @@ public interface MKE_WintertodtConfig extends Config {
     )
     String advancedSection = "advanced";
 
+    @ConfigSection(
+            name = "🏆 Reward Cart Looting",
+            description = "Automatically collect rewards from the Wintertodt reward cart when you have enough points",
+            position = 6
+    )
+    String rewardCartSection = "rewardCart";
+
     // General Settings
     @ConfigItem(
             keyName = "mke_wintertodt_requirements",
@@ -409,6 +416,68 @@ public interface MKE_WintertodtConfig extends Config {
                 "• Waits for banking/waiting states\n" +
                 "• Randomized intervals and durations\n" +
                 "• Works independently of other break systems";
+    }
+
+    // Reward Cart Looting
+    @ConfigItem(
+            keyName = "EnableRewardCartLooting",
+            name = "🏆 Enable Reward Cart Looting",
+            description = "Automatically collect rewards from the Wintertodt reward cart when you have enough points",
+            position = 1,
+            section = rewardCartSection
+    )
+    default boolean enableRewardCartLooting() {
+        return false;
+    }
+
+    @ConfigItem(
+            keyName = "MinimumRewardsForCollection",
+            name = "Minimum Rewards Threshold",
+            description = "Minimum number of reward cart rewards required before collecting them (with random variance)",
+            position = 2,
+            section = rewardCartSection
+    )
+    default int minimumRewardsForCollection() {
+        return 20;
+    }
+
+    @ConfigItem(
+            keyName = "RewardsVariance",
+            name = "Rewards Threshold Variance",
+            description = "Random variance added/subtracted from minimum rewards (gaussian distribution)",
+            position = 3,
+            section = rewardCartSection
+    )
+    default int rewardsVariance() {
+        return 10;
+    }
+
+    @ConfigItem(
+            keyName = "RewardCartInfo",
+            name = "📋 How Reward Cart Works",
+            description = "Information about the reward cart looting system",
+            position = 4,
+            section = rewardCartSection
+    )
+    default String rewardCartInfo() {
+        return "🏆 REWARD CART LOOTING:\n\n" +
+                "WHEN IT TRIGGERS:\n" +
+                "• When reward cart rewards ≥ (Minimum Rewards ± Random Variance)\n" +
+                "• Tracks rewards from chat message: 'You're now owed X rewards'\n" +
+                "• Only when in safe locations (not during activities)\n" +
+                "• Automatically exits Wintertodt temporarily\n\n" +
+                "WHAT IT DOES:\n" +
+                "1. Exits Wintertodt area\n" +
+                "2. Banks all items for clean inventory\n" +
+                "3. Walks to reward cart (west of bank)\n" +
+                "4. Uses 'Big-search' on reward cart\n" +
+                "5. Collects all available rewards\n" +
+                "6. Banks rewards, updates gear if received from reward cart, and returns to Wintertodt\n\n" +
+                "🎯 SAFETY FEATURES:\n" +
+                "• Only triggers during safe states\n" +
+                "• Automatically detects when no more rewards\n" +
+                "• Returns to normal script after completion\n" +
+                "• Works with both food and potion healing methods\n\n";
     }
 
     // Advanced Options
