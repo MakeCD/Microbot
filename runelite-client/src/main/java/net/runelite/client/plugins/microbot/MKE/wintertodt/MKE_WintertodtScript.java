@@ -80,11 +80,11 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
  * - Natural break activities and timing patterns
  * - Separate from Break Handler (for longer breaks)
  *
- * @version 1.1.0
+ * @version 2.0.0
  * @author MakeCD
  */
 public class MKE_WintertodtScript extends Script {
-    public static final String version = "1.1.0";
+    public static final String version = "2.0.0";
 
     // State management
     public static State state = State.BANKING;
@@ -2705,7 +2705,7 @@ public class MKE_WintertodtScript extends Script {
             
             // Get all rejuvenation potions (all dose variations)
             List<Rs2ItemModel> allPotions = new ArrayList<>();
-            for (Rs2ItemModel item : Rs2Inventory.items()) {
+            for (Rs2ItemModel item : Rs2Inventory.all()) {
                 if (item != null && item.getName() != null && item.getName().startsWith("Rejuvenation potion")) {
                     allPotions.add(item);
                 }
@@ -3158,7 +3158,7 @@ public class MKE_WintertodtScript extends Script {
             // Check food availability
             if (!Rs2Bank.hasBankItem(config.food().getName(), config.foodAmount(), true)) {
                 Microbot.showMessage("Insufficient food in bank! Please restock.");
-                Microbot.pauseAllScripts = true;
+                Microbot.pauseAllScripts.set(true);
                 return false;
             }
 
@@ -4742,7 +4742,7 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Pause if universal antiban has paused all scripts
-        if (Rs2AntibanSettings.universalAntiban && Microbot.pauseAllScripts) {
+        if (Rs2AntibanSettings.universalAntiban && Microbot.pauseAllScripts.get()) {
             return true;
         }
 
