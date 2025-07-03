@@ -1810,31 +1810,21 @@ public class MKE_WintertodtScript extends Script {
         int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
         int potionsNeeded = config.foodAmount() - currentPotions;
 
-        Microbot.log("=== POTION CREATION ANALYSIS ===");
-        Microbot.log("Potions needed: " + potionsNeeded);
-        Microbot.log("Current potions: " + currentPotions + "/" + config.foodAmount());
-        Microbot.log("Concoctions: " + concoctionCount + ", Herbs: " + herbCount);
-        Microbot.log("Current state: " + state);
-
         // If we have enough potions, don't do anything
         if (potionsNeeded <= 0) {
-            Microbot.log("Have enough potions, no creation needed");
             return;
         }
 
         // If we have both ingredients, make potions
         if (concoctionCount > 0 && herbCount > 0) {
-            Microbot.log("Have both ingredients, transitioning to MAKE_POTIONS");
             changeState(State.MAKE_POTIONS);
         }
         // If we need concoctions, get them first
         else if (concoctionCount < potionsNeeded) {
-            Microbot.log("Need more concoctions, transitioning to GET_CONCOCTIONS");
             changeState(State.GET_CONCOCTIONS);
         }
         // If we need herbs, get them
         else if (herbCount < potionsNeeded) {
-            Microbot.log("Need more herbs, transitioning to GET_HERBS");
             changeState(State.GET_HERBS);
         }
     }
@@ -2485,14 +2475,14 @@ public class MKE_WintertodtScript extends Script {
             }
 
             // If we're outside, enter the game room first
-            if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 3) {
-                Rs2Walker.walkTo(CRATE_STAND_LOCATION, 1);
+            if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 6) {
+                Rs2Walker.walkTo(CRATE_STAND_LOCATION, 6);
                 Rs2Player.waitForWalking();
                 return;
             }
             
             // Navigate to crate area
-            if (Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) <= 3 && Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 1) {
+            if (Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) <= 6 && Rs2Player.getWorldLocation().distanceTo(CRATE_STAND_LOCATION) > 1) {
                 Rs2Walker.walkFastCanvas(CRATE_STAND_LOCATION);
                 Rs2Player.waitForWalking();
                 return;
@@ -2558,8 +2548,8 @@ public class MKE_WintertodtScript extends Script {
             }
 
             // If we're outside, enter the game room first
-            if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 3) {
-                Rs2Walker.walkTo(SPROUTING_ROOTS_STAND, 1);
+            if (!WintertodtLocationManager.isInsideGameRoom() || Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 6) {
+                Rs2Walker.walkTo(SPROUTING_ROOTS_STAND, 6);
                 Rs2Player.waitForWalking();
                 return;
             }
@@ -2586,7 +2576,7 @@ public class MKE_WintertodtScript extends Script {
             int herbsNeeded = currentConcoctions - currentHerbs;
             
             // Navigate to sprouting roots
-            if (Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) <= 3 && Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 1) {
+            if (Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) <= 6 && Rs2Player.getWorldLocation().distanceTo(SPROUTING_ROOTS_STAND) > 1) {
                 Rs2Walker.walkFastCanvas(SPROUTING_ROOTS_STAND);
                 Rs2Player.waitForWalking();
                 return;
@@ -3546,6 +3536,11 @@ public class MKE_WintertodtScript extends Script {
             
             // Check if world hopper is already open or hopping in progress
             if (Microbot.isHopping()) {
+                return false;
+            }
+
+            // Check if bank is open
+            if (Rs2Bank.isOpen()) {
                 return false;
             }
             
