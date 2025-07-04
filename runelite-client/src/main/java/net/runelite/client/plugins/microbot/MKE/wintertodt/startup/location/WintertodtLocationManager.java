@@ -30,7 +30,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepGaussian;
  * 6. Navigate to Wintertodt using optimal transportation
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 1.0.1
  */
 public class WintertodtLocationManager {
     
@@ -218,8 +218,8 @@ public class WintertodtLocationManager {
 
             // Step 2: Check if we are close to Wintertodt
             int tilesToWintertodBank = Rs2Walker.getTotalTiles(WINTERTODT_BANK);
-            if (tilesToWintertodBank < FAR_FROM_BANK_THRESHOLD) {  
-                Microbot.log("Already close to Wintertodt - only walking to Wintertodt required");
+            if (tilesToWintertodBank < FAR_FROM_BANK_THRESHOLD && tilesToWintertodBank > 0) {  
+                Microbot.log("Already close to Wintertodt - only walking to Wintertodt required (tilesToWintertodBank: " + tilesToWintertodBank + ")");
                 walkToWintertodtBank = true;
             }
 

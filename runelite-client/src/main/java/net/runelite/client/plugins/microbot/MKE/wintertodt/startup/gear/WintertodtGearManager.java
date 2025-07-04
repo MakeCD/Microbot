@@ -25,7 +25,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
  * the best available gear based on player's access and skill levels.
  * 
  * @author MakeCD
- * @version 2.0.0
+ * @version 2.0.1
  */
 public class WintertodtGearManager {
     
@@ -489,6 +489,11 @@ public class WintertodtGearManager {
             }
             if (!Rs2Bank.openBank()) {
                 Microbot.log("Failed to open bank for gear setup");
+                return false;
+            }
+            Rs2Player.waitForWalking();
+            if (!Rs2Bank.isOpen()) {
+                Microbot.log("Bank not open for gear setup");
                 return false;
             }
         }

@@ -80,11 +80,11 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
  * - Natural break activities and timing patterns
  * - Separate from Break Handler (for longer breaks)
  *
- * @version 1.1.0
+ * @version 1.1.1
  * @author MakeCD
  */
 public class MKE_WintertodtScript extends Script {
-    public static final String version = "1.1.0";
+    public static final String version = "1.1.1";
 
     // State management
     public static State state = State.BANKING;
@@ -201,6 +201,7 @@ public class MKE_WintertodtScript extends Script {
 
     // ────────────── HEALING STRATEGY VARIABLES ──────────────────────────────────
     private boolean usesPotions = false;
+    private boolean autoAdjustedPotionUsage = false;
 
     // ────────────── REWARD CART LOOTING VARIABLES ────────────────────────────────
     public static boolean isLootingRewards = false;
@@ -228,7 +229,86 @@ public class MKE_WintertodtScript extends Script {
     // Object IDs for rejuvenation potion creation
     private static final int CRATE_OBJECT_ID = 29320; // Crate for concoctions
     private static final int SPROUTING_ROOTS_OBJECT_ID = 29315; // Sprouting roots for herbs
+
+    /**
+     * Inner class to hold comprehensive game state information.
+     */
+    private static class GameState {
+        boolean wintertodtRespawning;
+        boolean isWintertodtAlive;
+        int playerWarmth;
+        boolean playerIsLowWarmth;
+        GameObject brazier;
+        GameObject brokenBrazier;
+        GameObject burningBrazier;
+        boolean needBanking;
+        boolean needPotions = false; // For rejuvenation potion logic
+        int wintertodtHp = -1;
+        boolean inventoryFull;
+        boolean hasItemsToBurn;
+        boolean hasRootsToFletch;
+    }
     
+    /**
+     * Executes logic specific to the current state.
+     *
+     * @param gameState Current game state
+     */
+    private void executeStateLogic(GameState gameState) {
+        switch (state) {
+            case BANKING:
+                handleBankingState(gameState);
+                break;
+            case ENTER_ROOM:
+                handleEnterRoomState(gameState);
+                break;
+            case WAITING:
+                handleWaitingState(gameState);
+                break;
+            case LIGHT_BRAZIER:
+                handleLightBrazierState(gameState);
+                break;
+            case CHOP_ROOTS:
+                handleChopRootsState(gameState);
+                break;
+            case FLETCH_LOGS:
+                handleFletchLogsState(gameState);
+                break;
+            case BURN_LOGS:
+                handleBurnLogsState(gameState);
+                break;
+            case GET_CONCOCTIONS:
+                handleGetConcoctionsState(gameState);
+                break;
+            case GET_HERBS:
+                handleGetHerbsState(gameState);
+                break;
+            case MAKE_POTIONS:
+                handleMakePotionsState(gameState);
+                break;
+            case WALKING_TO_SAFE_SPOT_FOR_BREAK:
+                handleWalkingToSafeSpotForBreakState(gameState);
+                break;
+            case EXITING_FOR_REWARDS:
+                handleExitingForRewardsState(gameState);
+                break;
+            case WALKING_TO_REWARDS_BANK:
+                handleWalkingToRewardsBankState(gameState);
+                break;
+            case BANKING_FOR_REWARDS:
+                handleBankingForRewardsState(gameState);
+                break;
+            case WALKING_TO_REWARD_CART:
+                handleWalkingToRewardCartState(gameState);
+                break;
+            case LOOTING_REWARD_CART:
+                handleLootingRewardCartState(gameState);
+                break;
+            case RETURNING_FROM_REWARDS:
+                handleReturningFromRewardsState(gameState);
+                break;
+        }
+    }
 
     /* Returns the closest Bruma root that is on the same side as the
        selected brazier (<= 8 tiles from that brazier). */
@@ -1125,6 +1205,10 @@ public class MKE_WintertodtScript extends Script {
         rewardCartExhausted = false;
         lastRewardCartInteraction = 0;
         wasInWintertodtBeforeRewards = false;
+
+        // Reset potion usage variables
+        usesPotions = false;
+        autoAdjustedPotionUsage = false;
         
         Microbot.log("All script state variables reset to default values");
     }
@@ -1372,18 +1456,22 @@ public class MKE_WintertodtScript extends Script {
                                           config.brazierLocation().getOBJECT_BRAZIER_LOCATION());
 
             // Health and food management - determine healing strategy
-            usesPotions = config.rejuvenationPotions() && !config.useFoodManagement();
+            if (!autoAdjustedPotionUsage) {
+                usesPotions = config.rejuvenationPotions() && !config.useFoodManagement();
+            }
 
             QuestState druidicRitual = Rs2Player.getQuestState(Quest.DRUIDIC_RITUAL);
             if (druidicRitual != QuestState.FINISHED && usesPotions) {
                 Microbot.log("Druidic Ritual not finished - defaulting to food (no potions)");
                 usesPotions = false;
+                autoAdjustedPotionUsage = true;
             }
             
             // Fallback to food if both are enabled (shouldn't happen with proper config)
             if (config.rejuvenationPotions() && config.useFoodManagement() && druidicRitual == QuestState.FINISHED && !usesPotions) {
                 Microbot.log("Both potions and food management enabled - defaulting to potions");
                 usesPotions = true;
+                autoAdjustedPotionUsage = true;
             }
             
             // Fallback to food if neither is enabled
@@ -1391,9 +1479,11 @@ public class MKE_WintertodtScript extends Script {
                 if (druidicRitual == QuestState.FINISHED && !usesPotions) {
                     Microbot.log("Druidic Ritual finished - defaulting to potions");
                     usesPotions = true;
-                } else if (usesPotions) {
+                    autoAdjustedPotionUsage = true;
+                } else if (druidicRitual != QuestState.FINISHED && usesPotions) {
                     Microbot.log("Neither potions nor food management enabled and Druidic Ritual not finished - defaulting to food");
                     usesPotions = false;
+                    autoAdjustedPotionUsage = true;
                 }
             }
             
@@ -1737,15 +1827,6 @@ public class MKE_WintertodtScript extends Script {
             setLockState(State.BANKING, false);
             changeState(State.BANKING);
         }
-        
-        // NEW: Handle potion needs for rejuvenation potions
-        if (gameState.needPotions && usesPotions) {
-            if (BreakHandlerScript.isLockState()) {
-                BreakHandlerScript.setLockState(false);
-                Microbot.log("Unlocking break handler for potion creation");
-            }
-            handlePotionCreation(gameState);
-        }
     }
 
     /**
@@ -1774,11 +1855,19 @@ public class MKE_WintertodtScript extends Script {
             return; // Let the reward cart states handle everything
         }
 
-        // Handle potion creation if needed - but don't return early
-        if (gameState.needPotions && usesPotions && 
-            state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS) {
+        // Handle potion creation if needed
+        if (gameState.needPotions && usesPotions &&
+            !isRewardCartState(state) &&
+            state != State.BANKING && // BANKING state has its own potion gear-up logic
+            state != State.GET_CONCOCTIONS &&
+            state != State.GET_HERBS &&
+            state != State.MAKE_POTIONS) {
+            // Unlock break handler if we are starting potion creation
+            if (BreakHandlerScript.isLockState()) {
+                BreakHandlerScript.setLockState(false);
+                Microbot.log("Unlocking break handler for potion creation");
+            }
             handlePotionCreation(gameState);
-            // Don't return here - let the state execution happen below
         }
 
         // Determine if we should be doing main loop activities (only if not in potion states)
@@ -1899,74 +1988,33 @@ public class MKE_WintertodtScript extends Script {
     }
 
     /**
-     * Executes logic specific to the current state.
-     *
-     * @param gameState Current game state
-     */
-    private void executeStateLogic(GameState gameState) {
-        switch (state) {
-            case BANKING:
-                handleBankingState(gameState);
-                break;
-            case ENTER_ROOM:
-                handleEnterRoomState(gameState);
-                break;
-            case WAITING:
-                handleWaitingState(gameState);
-                break;
-            case LIGHT_BRAZIER:
-                handleLightBrazierState(gameState);
-                break;
-            case CHOP_ROOTS:
-                handleChopRootsState(gameState);
-                break;
-            case FLETCH_LOGS:
-                handleFletchLogsState(gameState);
-                break;
-            case BURN_LOGS:
-                handleBurnLogsState(gameState);
-                break;
-            case GET_CONCOCTIONS:
-                handleGetConcoctionsState(gameState);
-                break;
-            case GET_HERBS:
-                handleGetHerbsState(gameState);
-                break;
-            case MAKE_POTIONS:
-                handleMakePotionsState(gameState);
-                break;
-            case WALKING_TO_SAFE_SPOT_FOR_BREAK:
-                handleWalkingToSafeSpotForBreakState(gameState);
-                break;
-            case EXITING_FOR_REWARDS:
-                handleExitingForRewardsState(gameState);
-                break;
-            case WALKING_TO_REWARDS_BANK:
-                handleWalkingToRewardsBankState(gameState);
-                break;
-            case BANKING_FOR_REWARDS:
-                handleBankingForRewardsState(gameState);
-                break;
-            case WALKING_TO_REWARD_CART:
-                handleWalkingToRewardCartState(gameState);
-                break;
-            case LOOTING_REWARD_CART:
-                handleLootingRewardCartState(gameState);
-                break;
-            case RETURNING_FROM_REWARDS:
-                handleReturningFromRewardsState(gameState);
-                break;
-        }
-    }
-
-    /**
      * Handles the banking state logic.
      */
     private void handleBankingState(GameState gameState) {
         try {
             /* leave the arena BEFORE doing anything else */
-            if (!attemptLeaveWintertodt()) {
-                return;                           // still inside → try again next tick
+            // Handle script-specific state management when leaving Wintertodt
+            if (!isInsideWintertodtArea()) {
+                if (previouslyInsideArena) {
+                    resetActionPlanning();
+                    previouslyInsideArena = false;
+                    waitingForRoundEnd = false; // Reset waiting flag when outside
+                }
+            } else {
+                previouslyInsideArena = true;
+                
+                // Check points before leaving - wait for rewards if we have enough
+                int currentPoints = getWintertodtPoints();
+                if (currentPoints >= 500) {
+                    Microbot.log("Have " + currentPoints + " points - waiting near door for round to end naturally");
+                    waitingForRoundEnd = true; // Set flag to prevent resuming activities
+                } else {
+                    waitingForRoundEnd = false; // Reset waiting flag if points dropped below threshold
+                }
+                
+                if (!WintertodtLocationManager.attemptLeaveWintertodt()) {
+                    return; // still inside → try again next tick
+                }
             }
 
             // Check and hop to Wintertodt world if needed (safe location)
@@ -1976,7 +2024,38 @@ public class MKE_WintertodtScript extends Script {
 
             // Skip banking entirely if using rejuvenation potions
             if (usesPotions) {
-                Microbot.log("Using rejuvenation potions - redirecting to potion creation instead of banking");
+                /*
+                 * Even when using rejuvenation potions we STILL need to make sure the player
+                 * has all mandatory tools (axe, tinderbox/torch, knife, hammer …) before
+                 * heading back into the arena.  Therefore we perform a **minimal** banking
+                 * sequence that only (re)sets up gear & inventory but skips the regular
+                 * food-withdrawal logic.
+                 */
+                Microbot.log("Using rejuvenation potions - ensuring gear/tools via quick bank setup before potion workflow");
+
+                // Walk to the bank chest/booth if we are not close enough yet
+                if (Rs2Player.getWorldLocation().distanceTo(BANK_LOCATION) > 6) {
+                    Rs2Walker.walkTo(BANK_LOCATION);
+                    Rs2Player.waitForWalking();
+                    return; // wait until we have arrived, continue next tick
+                }
+
+                // Open the bank if it is not open yet
+                if (!Rs2Bank.isOpen()) {
+                    Rs2Bank.useBank();
+                    return; // open animation in progress – continue once open
+                }
+
+                // At this point the bank is open → run the usual gear/inventory setup helpers
+                checkAndUpgradeGear();          // make sure best gear is equipped / withdrawn
+                if (inventoryManager != null) {
+                    inventoryManager.setupInventory(); // withdraw and arrange mandatory tools
+                }
+
+                // All done – close the bank again so we can continue
+                Rs2Bank.closeBank();
+
+                // Proceed with the potion-creation workflow
                 changeState(State.GET_CONCOCTIONS);
                 return;
             }
@@ -2502,6 +2581,26 @@ public class MKE_WintertodtScript extends Script {
                 return;
             }
 
+            // Check inventory space and drop items if needed
+            int emptySlots = Rs2Inventory.getEmptySlots();
+            if (emptySlots == 0) {
+                Microbot.log("Inventory full - dropping bruma items to make space for concoctions");
+                
+                // Drop bruma roots first
+                if (Rs2Inventory.hasItem(ItemID.BRUMA_ROOT)) {
+                    Rs2Inventory.drop(ItemID.BRUMA_ROOT);
+                    sleepGaussian(300, 100);
+                } 
+                // If no roots, drop bruma kindlings
+                else if (Rs2Inventory.hasItem(ItemID.BRUMA_KINDLING)) {
+                    Rs2Inventory.drop(ItemID.BRUMA_KINDLING);
+                    sleepGaussian(300, 100);
+                } else {
+                    Microbot.log("No bruma items to drop - inventory management issue");
+                }
+                return; // Try again next tick after dropping
+            }
+
             // Find and interact with crate
             TileObject crate = Rs2GameObject.findObject(CRATE_OBJECT_ID, CRATE_LOCATION);
             if (crate == null) {
@@ -2586,6 +2685,26 @@ public class MKE_WintertodtScript extends Script {
             if (Rs2Player.isAnimating()) {
                 Microbot.log("Picking herbs... (need " + herbsNeeded + " more)");
                 return;
+            }
+
+            // Check inventory space and drop items if needed
+            int emptySlots = Rs2Inventory.getEmptySlots();
+            if (emptySlots == 0) {
+                Microbot.log("Inventory full - dropping bruma items to make space for herbs");
+                
+                // Drop bruma roots first
+                if (Rs2Inventory.hasItem(ItemID.BRUMA_ROOT)) {
+                    Rs2Inventory.drop(ItemID.BRUMA_ROOT);
+                    sleepGaussian(300, 100);
+                } 
+                // If no roots, drop bruma kindlings
+                else if (Rs2Inventory.hasItem(ItemID.BRUMA_KINDLING)) {
+                    Rs2Inventory.drop(ItemID.BRUMA_KINDLING);
+                    sleepGaussian(300, 100);
+                } else {
+                    Microbot.log("No bruma items to drop - inventory management issue");
+                }
+                return; // Try again next tick after dropping
             }
 
             // Find sprouting roots and pick
@@ -3317,136 +3436,42 @@ public class MKE_WintertodtScript extends Script {
      * Checks for gear upgrades during banking but preserves already-arranged inventory.
      */
     private void checkAndUpgradeGear() {
+        /*
+         * Simplified & bullet-proof version:
+         * Every time we stand in a bank we –
+         *   1) run a FULL `WintertodtGearManager.setupOptimalGear()` pass
+         *      (this returns quickly if equipment is already optimal),
+         *   2) run `inventoryManager.setupInventory()` to ensure tools are in
+         *      their designated slots on the right-hand column.
+         * This guarantees that any newly obtained warm gear, better axe,
+         * bruma-torch upgrade or missing tool is caught immediately – we no
+         * longer rely on heuristics about the inventory layout.
+         */
         try {
-            Microbot.log("Checking for gear upgrades during banking...");
-            
-            // Check if inventory is already optimally arranged (tools in correct slots)
-            boolean inventoryAlreadyArranged = isInventoryOptimallyArranged();
-            
-            if (inventoryAlreadyArranged) {
-                Microbot.log("Inventory already optimally arranged - skipping full gear setup");
-                
-                // Only check if we're missing any required tools
-                if (isMissingRequiredTools()) {
-                    Microbot.log("Missing some tools - withdrawing only what's needed");
-                    withdrawMissingToolsOnly();
-                } else {
-                    Microbot.log("All required tools present - no gear changes needed");
-                }
-                return;
-            }
-            
-            // Full gear analysis and setup if inventory not arranged
-            Microbot.log("Running full gear analysis and setup...");
-            WintertodtGearManager tempGearManager = new WintertodtGearManager(config);
-            if (tempGearManager.setupOptimalGear()) {
-                Microbot.log("Gear upgrades applied successfully during banking");
-                logCurrentGearSetup(tempGearManager);
+            Microbot.log("Running full gear + inventory optimisation …");
+
+            // --- 1) Gear (equipment) optimisation ---------------------------------
+            WintertodtGearManager gearManager = new WintertodtGearManager(config);
+            boolean gearPassOk = gearManager.setupOptimalGear();
+
+            if (gearPassOk) {
+                Microbot.log("Gear check completed (items equipped / already optimal).");
+                logCurrentGearSetup(gearManager);
             } else {
-                Microbot.log("Gear upgrade check completed with warnings");
+                Microbot.log("Gear optimisation returned false – continuing regardless (likely already optimal or nothing available).");
             }
-            
+
+            // --- 2) Inventory tool layout -----------------------------------------
+            if (inventoryManager != null) {
+                boolean invOk = inventoryManager.setupInventory();
+                if (!invOk) {
+                    Microbot.log("Warning: Inventory setup encountered issues – verify bank / tool availability.");
+                }
+            }
+
         } catch (Exception e) {
-            Microbot.log("Error during gear upgrade check: " + e.getMessage());
+            Microbot.log("Error during full gear/inventory optimisation: " + e.getMessage());
             e.printStackTrace();
-        }
-    }
-    
-    /**
-     * Checks if inventory tools are already in optimal positions.
-     */
-    private boolean isInventoryOptimallyArranged() {
-        try {
-            // Check if key tools are in their expected slots
-            Rs2ItemModel slot27 = Rs2Inventory.get(27); // Knife slot
-            Rs2ItemModel slot26 = Rs2Inventory.get(26); // Hammer slot  
-            Rs2ItemModel slot24 = Rs2Inventory.get(24); // Axe slot
-            
-            // Get axe decision for current setup
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            
-            boolean knifeCorrect = !config.fletchRoots() || 
-                                  (slot27 != null && slot27.getId() == ItemID.KNIFE);
-            boolean hammerCorrect = !config.fixBrazier() || 
-                                   (slot26 != null && slot26.getId() == ItemID.HAMMER);
-            boolean axeCorrect = axeDecision.shouldEquipAxe() || 
-                               (slot24 != null && slot24.getId() == axeDecision.getAxeId());
-            
-            return knifeCorrect && hammerCorrect && axeCorrect;
-            
-        } catch (Exception e) {
-            Microbot.log("Error checking inventory arrangement: " + e.getMessage());
-            return false; // Assume not arranged on error
-        }
-    }
-    
-    /**
-     * Checks if we're missing any required tools.
-     */
-    private boolean isMissingRequiredTools() {
-        WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-        
-        boolean hasAxe = axeDecision.shouldEquipAxe() ? 
-                        Rs2Equipment.isWearing(axeDecision.getAxeId()) :
-                        Rs2Inventory.hasItem(axeDecision.getAxeId());
-                        
-        boolean hasFireTool = Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) ||
-                             Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) ||
-                             Rs2Inventory.hasItem(ItemID.TINDERBOX);
-                             
-        boolean hasKnife = !config.fletchRoots() || Rs2Inventory.hasItem(ItemID.KNIFE);
-        boolean hasHammer = !config.fixBrazier() || Rs2Inventory.hasItem(ItemID.HAMMER);
-        
-        return !hasAxe || !hasFireTool || !hasKnife || !hasHammer;
-    }
-    
-    /**
-     * Withdraws only missing tools without disturbing arranged inventory.
-     */
-    private void withdrawMissingToolsOnly() {
-        try {
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            
-            // Check and withdraw missing axe
-            if (!axeDecision.shouldEquipAxe() && !Rs2Inventory.hasItem(axeDecision.getAxeId())) {
-                if (Rs2Bank.hasItem(axeDecision.getAxeId())) {
-                    Rs2Bank.withdrawOne(axeDecision.getAxeId());
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(axeDecision.getAxeId()), 100, 3000);
-                    Microbot.log("Withdrew missing axe: " + axeDecision.getAxeName());
-                }
-            }
-            
-            // Check and withdraw missing knife
-            if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
-                if (Rs2Bank.hasItem(ItemID.KNIFE)) {
-                    Rs2Bank.withdrawOne(ItemID.KNIFE);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.KNIFE), 100, 3000);
-                    Microbot.log("Withdrew missing knife");
-                }
-            }
-            
-            // Check and withdraw missing hammer
-            if (config.fixBrazier() && !Rs2Inventory.hasItem(ItemID.HAMMER)) {
-                if (Rs2Bank.hasItem(ItemID.HAMMER)) {
-                    Rs2Bank.withdrawOne(ItemID.HAMMER);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.HAMMER), 100, 3000);
-                    Microbot.log("Withdrew missing hammer");
-                }
-            }
-            
-            // Check and withdraw missing tinderbox
-            if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) && 
-                !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) &&
-                !Rs2Inventory.hasItem(ItemID.TINDERBOX)) {
-                if (Rs2Bank.hasItem(ItemID.TINDERBOX)) {
-                    Rs2Bank.withdrawOne(ItemID.TINDERBOX);
-                    sleepUntilTrue(() -> Rs2Inventory.hasItem(ItemID.TINDERBOX), 100, 3000);
-                    Microbot.log("Withdrew missing tinderbox");
-                }
-            }
-            
-        } catch (Exception e) {
-            Microbot.log("Error withdrawing missing tools: " + e.getMessage());
         }
     }
     
@@ -3924,25 +3949,6 @@ public class MKE_WintertodtScript extends Script {
         }
     }
 
-    /**
-     * Inner class to hold comprehensive game state information.
-     */
-    private static class GameState {
-        boolean wintertodtRespawning;
-        boolean isWintertodtAlive;
-        int playerWarmth;
-        boolean playerIsLowWarmth;
-        GameObject brazier;
-        GameObject brokenBrazier;
-        GameObject burningBrazier;
-        boolean needBanking;
-        boolean needPotions = false; // For rejuvenation potion logic
-        int wintertodtHp = -1;
-        boolean inventoryFull;
-        boolean hasItemsToBurn;
-        boolean hasRootsToFletch;
-    }
-
     /* ---------------------------------------------------------
      *  estimate seconds until kill from live HP / DPS
      * --------------------------------------------------------- */
@@ -4203,40 +4209,7 @@ public class MKE_WintertodtScript extends Script {
         return WintertodtLocationManager.isInsideGameRoom();
     }
 
-    /**
-     * Wrapper method that handles script-specific state management when leaving Wintertodt.
-     * The actual door interaction is delegated to WintertodtLocationManager.
-     *
-     * @return true once the player is outside (south of the doors)
-     */
-    private boolean attemptLeaveWintertodt()
-    {
-        /* Already outside? → reset once and nothing else to do */
-        if (!isInsideWintertodtArea())
-        {
-            if (previouslyInsideArena)
-            {
-                resetActionPlanning();
-                previouslyInsideArena = false;
-                waitingForRoundEnd = false; // Reset waiting flag when outside
-            }
-            return true;
-        }
-        previouslyInsideArena = true;
 
-        /* Check points before leaving - wait for rewards if we have enough */
-        int currentPoints = getWintertodtPoints();
-        if (currentPoints >= 500) {
-            Microbot.log("Have " + currentPoints + " points - waiting near door for round to end naturally");
-            waitingForRoundEnd = true; // Set flag to prevent resuming activities
-        } else {
-            /* Reset waiting flag if points dropped below threshold */
-            waitingForRoundEnd = false;
-        }
-
-        // Use the location manager's method for the actual door interaction
-        return WintertodtLocationManager.attemptLeaveWintertodt();
-    }
 
     /* ═════════════════════════════════════════════════════════════════════ */
 
@@ -4570,7 +4543,7 @@ public class MKE_WintertodtScript extends Script {
      */
     private void handleExitingForRewardsState(GameState gameState) {
         try {
-            if (!attemptLeaveWintertodt()) {
+            if (!WintertodtLocationManager.attemptLeaveWintertodt()) {
                 return; // Still inside, try again next tick
             }
             
