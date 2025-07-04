@@ -30,7 +30,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepGaussian;
  * 6. Navigate to Wintertodt using optimal transportation
  * 
  * @author MakeCD
- * @version 1.0.1
+ * @version 1.0.2
  */
 public class WintertodtLocationManager {
     
@@ -349,8 +349,10 @@ public class WintertodtLocationManager {
             }
             
             if (!Rs2Bank.walkToBank()) {
-                Microbot.log("Failed to reach bank");
-                return false;
+                Microbot.log("Failed to reach bank, maybe missclicked");
+                if (!Rs2Bank.isNearBank(15)) {
+                    return false;
+                }
             }
 
             // Prevent bug that causes bot to not being able to wear items in bank by adding inventory open command first
@@ -360,7 +362,7 @@ public class WintertodtLocationManager {
 
             while (!Rs2Bank.isOpen() && Rs2Bank.isNearBank(15)) {
                 Rs2Bank.openBank();
-                sleepGaussian(1000, 200);
+                sleepGaussian(2500, 500);
             }
             
             // Bank unnecessary items (keep essentials)
