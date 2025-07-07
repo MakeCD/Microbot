@@ -504,6 +504,17 @@ public interface MKE_WintertodtConfig extends Config {
     }
 
     @ConfigItem(
+            keyName = "CameraMovementFrequency",
+            name = "Random Camera Movement Frequency (seconds)",
+            description = "Minimum time between random camera movements in seconds (0.1% chance per call, increases over time). Higher values = less frequent movements. Set to 0 to disable camera movements entirely.",
+            position = 3,
+            section = advancedSection
+    )
+    default int cameraMovementFrequency() {
+        return 10;
+    }
+
+    @ConfigItem(
             keyName = "ShowAntibanOverlay",
             name = "Show Antiban Overlay",
             description = "Display antiban information in the overlay (action cooldowns, play style, etc.)",
