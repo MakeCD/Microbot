@@ -197,7 +197,6 @@ public class MKE_WintertodtScript extends Script {
     // Mouse and camera movement tracking
     private long lastMouseMovement = 0;
     private long lastCameraMovement = 0;
-    private static final int CAMERA_MOVEMENT_MIN_DELAY = 8000; // 8 seconds minimum
 
     // ────────────── HEALING STRATEGY VARIABLES ──────────────────────────────────
     private boolean usesPotions = false;
@@ -655,12 +654,6 @@ public class MKE_WintertodtScript extends Script {
             return FletchingInterruptType.TIMEOUT;
         }
         
-        // Check if brazier went out or broke (priority to fix)
-        if (gameState.brokenBrazier != null || 
-            (gameState.burningBrazier == null && gameState.brazier != null)) {
-            return FletchingInterruptType.BRAZIER_WENT_OUT;
-        }
-        
         return null; // No interruption detected
     }
 
@@ -756,8 +749,6 @@ public class MKE_WintertodtScript extends Script {
                 fletchingInterruptType = FletchingInterruptType.DAMAGE_SNOWFALL;
             } else if (message.startsWith("The brazier is broken and shrapnel")) {
                 fletchingInterruptType = FletchingInterruptType.DAMAGE_BRAZIER;
-            } else if (message.startsWith("The brazier has gone out")) {
-                fletchingInterruptType = FletchingInterruptType.BRAZIER_WENT_OUT;
             } else if (message.startsWith("Your inventory is too full")) {
                 fletchingInterruptType = FletchingInterruptType.INVENTORY_FULL;
             } else if (message.startsWith("You have run out of bruma roots")) {
@@ -1233,7 +1224,10 @@ public class MKE_WintertodtScript extends Script {
             Rs2AntibanSettings.moveMouseRandomly = true;
             Rs2AntibanSettings.moveMouseRandomlyChance = 0.36;
             Rs2AntibanSettings.moveMouseOffScreen = true;
-            Rs2AntibanSettings.moveMouseOffScreenChance = 0.34;
+            Rs2AntibanSettings.moveMouseOffScreenChance = 0.38;
+            Rs2AntibanSettings.naturalMouse = true;
+            Rs2AntibanSettings.simulateMistakes = true;
+            Rs2AntibanSettings.simulateFatigue = true;
             Rs2Antiban.setActivityIntensity(ActivityIntensity.MODERATE);
             
             // Log antiban configuration
@@ -1627,28 +1621,34 @@ public class MKE_WintertodtScript extends Script {
      * Only moves camera when bot is idle to avoid interrupting actions.
      */
     private boolean shouldPerformCameraMovement(long currentTime) {
+        // Check if camera movements are disabled
+        int cameraFrequencySeconds = config.cameraMovementFrequency();
+        if (cameraFrequencySeconds <= 0) {
+            return false;
+        }
+
+        // Convert frequency to milliseconds
+        long cameraMovementMinDelay = cameraFrequencySeconds * 1000L;
+
         // Check if enough time has passed since last camera movement
         long timeSinceLastMove = currentTime - lastCameraMovement;
-        if (timeSinceLastMove < CAMERA_MOVEMENT_MIN_DELAY) {
+        if (timeSinceLastMove < cameraMovementMinDelay) {
             return false;
         }
 
         // Random chance that increases over time
-        double baseChance = 0.001; // 1% base chance per call
-        double timeMultiplier = Math.min(3.0, timeSinceLastMove / (double)CAMERA_MOVEMENT_MIN_DELAY);
+        double baseChance = 0.001; // 0.1% base chance per call
+        double timeMultiplier = Math.min(50.0, timeSinceLastMove / (double)cameraMovementMinDelay);
         double finalChance = baseChance * timeMultiplier;
 
         if (random.nextDouble() > finalChance) {
             return false;
         }
 
-        // Only move camera when bot is in idle states and not actively doing anything
-        boolean isIdleState = (state == State.WAITING || state == State.BANKING);
-        boolean isNotAnimating = !Rs2Player.isAnimating();
-        boolean isNotMoving = !Rs2Player.isMoving();
-        boolean isNotInteracting = !Rs2Player.isInteracting();
+        // Only move camera when bot is in suitable states
+        boolean isRestrictedState = (state == State.WAITING);
 
-        return isIdleState && isNotAnimating && isNotMoving && isNotInteracting;
+        return !isRestrictedState;
     }
 
     /**
@@ -1844,7 +1844,9 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Update round timer tracking
-        updateRoundTimer();
+        if (!isRewardCartState(state) && state != State.BANKING && state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS && isInsideWintertodtArea()) {
+            updateRoundTimer();
+        }
 
         // Update game state
         gameState = analyzeGameState();
@@ -1870,8 +1872,8 @@ public class MKE_WintertodtScript extends Script {
             handlePotionCreation(gameState);
         }
 
-        // Determine if we should be doing main loop activities (only if not in potion states)
-        if (!gameState.needBanking && state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS && state != State.WALKING_TO_SAFE_SPOT_FOR_BREAK) {
+        // Determine if we should be doing main loop activities (only if not in potion states or reward cart states)
+        if (!gameState.needBanking && state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS && state != State.WALKING_TO_SAFE_SPOT_FOR_BREAK && !isRewardCartState(state)) {
             if (!gameState.isWintertodtAlive) {
                 handleWintertodtDown(gameState);
             } else {
@@ -1961,18 +1963,14 @@ public class MKE_WintertodtScript extends Script {
         }
 
         /*  If time is almost over just finish up     */
-        if (estimatedSecondsLeft < 8)
+        if (estimatedSecondsLeft < 15)
         {
-            // try a last-second fix if brazier broke
-            if (gameState.brokenBrazier != null && config.fixBrazier())
-            {
-                changeState(State.BURN_LOGS);             // BURN_LOGS handler contains "fix" logic
-                return;
+            if (gameState.hasItemsToBurn) {
+                if (shouldBurnLogs(gameState)) {
+                    Microbot.log("Time is almost over and we have items to burn, lets just burn them!");
+                    return;
+                }
             }
-
-            if (gameState.hasItemsToBurn)
-                shouldBurnLogs(gameState);
-
             return;                                       // otherwise idle / hover
         }
 
@@ -2031,7 +2029,7 @@ public class MKE_WintertodtScript extends Script {
                  * sequence that only (re)sets up gear & inventory but skips the regular
                  * food-withdrawal logic.
                  */
-                Microbot.log("Using rejuvenation potions - ensuring gear/tools via quick bank setup before potion workflow");
+                Microbot.log("Using rejuvenation potions - ensuring gear/tools via bank setup");
 
                 // Walk to the bank chest/booth if we are not close enough yet
                 if (Rs2Player.getWorldLocation().distanceTo(BANK_LOCATION) > 6) {
@@ -2048,13 +2046,14 @@ public class MKE_WintertodtScript extends Script {
 
                 // At this point the bank is open → run the usual gear/inventory setup helpers
                 checkAndUpgradeGear();          // make sure best gear is equipped / withdrawn
-                if (inventoryManager != null) {
-                    inventoryManager.setupInventory(); // withdraw and arrange mandatory tools
-                }
 
                 // All done – close the bank again so we can continue
                 Rs2Bank.closeBank();
+                
+                // Wait for bank to close before proceeding
+                sleepUntilTrue(() -> !Rs2Bank.isOpen(), 100, 3000);
 
+                Microbot.log("Rejuvenation potion gear/tool setup completed - proceeding to potion creation");
                 // Proceed with the potion-creation workflow
                 changeState(State.GET_CONCOCTIONS);
                 return;
@@ -3235,27 +3234,11 @@ public class MKE_WintertodtScript extends Script {
      */
     private boolean handleRegularBankingLogic() {
         try {
-            // Heal up if needed
-            if (!Rs2Player.isFullHealth() && Rs2Inventory.hasItem(config.food().getName(), false)) {
-                eatAt(99);
-                return true;
-            }
-
-            // Check if we have enough food
-            if (Rs2Inventory.hasItemAmount(config.food().getName(), config.foodAmount())) {
-                // Before leaving bank, always check if we can upgrade our gear
-                if (Rs2Bank.isOpen()) {
-                    checkAndUpgradeGear();
-                    inventoryManager.setupInventory();
-                }
-                changeState(State.ENTER_ROOM);
-                return true;
-            }
-
-            // Navigate to bank
+            // Navigate to bank first
             if (Rs2Player.getWorldLocation().distanceTo(BANK_LOCATION) > 6) {
                 Rs2Walker.walkTo(BANK_LOCATION);
                 Rs2Player.waitForWalking();
+                return true; // Continue next tick
             }
 
             // Prevent bug that causes bot to not being able to wear items in bank by adding inventory open command first
@@ -3270,6 +3253,18 @@ public class MKE_WintertodtScript extends Script {
             // ALWAYS check and upgrade gear when banking, then set up inventory
             checkAndUpgradeGear();
             inventoryManager.setupInventory();
+
+            // Heal up if needed AFTER we have access to food
+            if (!Rs2Player.isFullHealth() && Rs2Inventory.hasItem(config.food().getName(), false)) {
+                eatAt(99);
+                return true;
+            }
+
+            // Check if we have enough food AFTER banking setup
+            if (Rs2Inventory.hasItemAmount(config.food().getName(), config.foodAmount())) {
+                // We have enough food and tools are set up, ready to continue
+                return true;
+            }
 
             // Count current food
             int currentFoodCount = (int) Rs2Inventory.getInventoryFood().stream().count();
@@ -3433,47 +3428,102 @@ public class MKE_WintertodtScript extends Script {
     }
 
     /**
-     * Checks for gear upgrades during banking but preserves already-arranged inventory.
+     * Checks for gear upgrades during banking with robust retry logic.
+     * Now returns success/failure status and retries on failures.
      */
-    private void checkAndUpgradeGear() {
+    private boolean checkAndUpgradeGear() {
         /*
-         * Simplified & bullet-proof version:
+         * Enhanced version with retry logic:
          * Every time we stand in a bank we –
          *   1) run a FULL `WintertodtGearManager.setupOptimalGear()` pass
          *      (this returns quickly if equipment is already optimal),
          *   2) run `inventoryManager.setupInventory()` to ensure tools are in
          *      their designated slots on the right-hand column.
-         * This guarantees that any newly obtained warm gear, better axe,
-         * bruma-torch upgrade or missing tool is caught immediately – we no
-         * longer rely on heuristics about the inventory layout.
+         * 
+         * NEW: Now includes retry logic and proper error handling
          */
-        try {
-            Microbot.log("Running full gear + inventory optimisation …");
+        
+        int maxRetries = 3;
+        int retryDelay = 1000; // 1 second between retries
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                Microbot.log("Running gear + inventory setup (attempt " + attempt + "/" + maxRetries + ")...");
 
-            // --- 1) Gear (equipment) optimisation ---------------------------------
-            WintertodtGearManager gearManager = new WintertodtGearManager(config);
-            boolean gearPassOk = gearManager.setupOptimalGear();
-
-            if (gearPassOk) {
-                Microbot.log("Gear check completed (items equipped / already optimal).");
-                logCurrentGearSetup(gearManager);
-            } else {
-                Microbot.log("Gear optimisation returned false – continuing regardless (likely already optimal or nothing available).");
-            }
-
-            // --- 2) Inventory tool layout -----------------------------------------
-            if (inventoryManager != null) {
-                boolean invOk = inventoryManager.setupInventory();
-                if (!invOk) {
-                    Microbot.log("Warning: Inventory setup encountered issues – verify bank / tool availability.");
+                // Ensure bank is still open
+                if (!Rs2Bank.isOpen()) {
+                    Microbot.log("Bank closed during gear setup - reopening...");
+                    if (!Rs2Bank.useBank()) {
+                        Microbot.log("Failed to reopen bank on attempt " + attempt);
+                        if (attempt < maxRetries) {
+                            sleepGaussian(retryDelay, 200);
+                            continue;
+                        }
+                        return false;
+                    }
+                    sleepUntilTrue(Rs2Bank::isOpen, 100, 3000);
                 }
-            }
 
-        } catch (Exception e) {
-            Microbot.log("Error during full gear/inventory optimisation: " + e.getMessage());
-            e.printStackTrace();
+                // --- 1) Gear (equipment) optimisation ---------------------------------
+                WintertodtGearManager gearManager = new WintertodtGearManager(config);
+                boolean gearPassOk = gearManager.setupOptimalGear();
+
+                if (!gearPassOk) {
+                    Microbot.log("Gear setup failed on attempt " + attempt);
+                    if (attempt < maxRetries) {
+                        sleepGaussian(retryDelay, 200);
+                        continue;
+                    }
+                    Microbot.log("Gear setup failed after " + maxRetries + " attempts");
+                    return false;
+                }
+
+                Microbot.log("Gear setup completed successfully");
+                logCurrentGearSetup(gearManager);
+
+                // --- 2) Inventory tool layout -----------------------------------------
+                if (inventoryManager != null) {
+                    boolean invOk = inventoryManager.setupInventory();
+                    if (!invOk) {
+                        Microbot.log("Inventory setup failed on attempt " + attempt);
+                        if (attempt < maxRetries) {
+                            sleepGaussian(retryDelay, 200);
+                            continue;
+                        }
+                        Microbot.log("Inventory setup failed after " + maxRetries + " attempts");
+                        return false;
+                    }
+                    
+                    Microbot.log("Inventory setup completed successfully");
+                } else {
+                    Microbot.log("Warning: Inventory manager is null - cannot setup inventory");
+                    return false;
+                }
+
+
+
+                // All steps succeeded!
+                Microbot.log("Complete gear + inventory setup successful!");
+                return true;
+
+            } catch (Exception e) {
+                Microbot.log("Error during gear/inventory setup (attempt " + attempt + "): " + e.getMessage());
+                e.printStackTrace();
+                
+                if (attempt < maxRetries) {
+                    sleepGaussian(retryDelay, 200);
+                    continue;
+                }
+                
+                Microbot.log("Gear setup failed with exception after " + maxRetries + " attempts");
+                return false;
+            }
         }
+        
+        return false; // Should never reach here, but just in case
     }
+
+
     
     /**
      * Logs current gear setup for debugging.
@@ -3617,6 +3667,11 @@ public class MKE_WintertodtScript extends Script {
             
             // Perform the world hop (NOTE: Microbot.hopToWorld() has a bug - returns false even on success)
             Microbot.hopToWorld(targetWorld);
+
+            // If the world hop failed, try again (This happens basically every time)
+            if (Rs2Player.getWorld() != targetWorld) {
+                Microbot.hopToWorld(targetWorld);
+            }
             
             // Don't rely on return value - wait and check if world actually changed
             Microbot.log("World hop initiated, waiting for completion...");
@@ -4818,8 +4873,20 @@ public class MKE_WintertodtScript extends Script {
 
         currentRewardCartRewards = 0;
         
-        // Return to banking to organize inventory and continue normal script
-        changeState(State.BANKING);
+        // Force complete startup sequence after reward collection
+        // This ensures proper gear setup, inventory setup, and positioning
+        startupCompleted = false;
+        isInitialized = false;
+        
+        // Reset the startup manager for a fresh startup sequence
+        if (startupManager != null) {
+            startupManager.reset();
+        }
+        
+        Microbot.log("Forcing complete startup sequence after reward collection to ensure proper setup");
+        
+        // Let the main loop handle startup sequence - don't change state here
+        // The startup sequence will handle everything: location, gear, inventory, positioning
     }
 
     /**
@@ -4900,4 +4967,6 @@ public class MKE_WintertodtScript extends Script {
         
         return false;
     }
+
+
 }
