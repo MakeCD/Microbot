@@ -3272,7 +3272,7 @@ public class MKE_WintertodtScript extends Script {
             // Check food availability
             if (!Rs2Bank.hasBankItem(config.food().getName(), config.foodAmount(), true)) {
                 Microbot.showMessage("Insufficient food in bank! Please restock.");
-                Microbot.pauseAllScripts.set(true);
+                Microbot.pauseAllScripts.compareAndSet(false, true);
                 return false;
             }
 
