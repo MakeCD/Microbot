@@ -818,12 +818,19 @@ public class WintertodtGearDatabase {
     
     private List<WintertodtGearItem> createHandsGear() {
         return Arrays.asList(
-            // Pyromancer gear (Best)
+            // Regen Bracelet
+            new WintertodtGearItem.Builder(ItemID.REGEN_BRACELET, "Regen bracelet", GLOVES)
+                .priority(1000).category(WintertodtGearItem.GearCategory.UTILITY)
+                .hasSpecialEffect()
+                .description("Best gloves for Wintertodt, warmth meter regens faster, no warmth")
+                .build(),
+
+            // Pyromancer gear
             new WintertodtGearItem.Builder(ItemID.WARM_GLOVES, "Warm gloves", GLOVES)
-                .priority(1000).category(WintertodtGearItem.GearCategory.PYROMANCER)
+                .priority(900).category(WintertodtGearItem.GearCategory.PYROMANCER)
                 .levelRequirement(Skill.FIREMAKING, 50)
                 .providesWarmth().untradeable()
-                .description("Best gloves for Wintertodt")
+                .description("Pyromancer gloves - provides warmth")
                 .build(),
                 
             // Santa/Antisanta gloves
