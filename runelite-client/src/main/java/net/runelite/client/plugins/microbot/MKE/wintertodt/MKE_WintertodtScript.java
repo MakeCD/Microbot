@@ -194,6 +194,10 @@ public class MKE_WintertodtScript extends Script {
     private int actionsPerformed = 0;
     private int consecutiveFailures = 0;
     
+    // Exit failure tracking for banking
+    private int consecutiveExitFailures = 0;
+    private static final int MAX_EXIT_FAILURES = 5;
+    
     // Mouse and camera movement tracking
     private long lastMouseMovement = 0;
     private long lastCameraMovement = 0;
@@ -1483,8 +1487,7 @@ public class MKE_WintertodtScript extends Script {
             
             String foodType = usesPotions ? "Rejuvenation potion " : config.food().getName();
             int foodCount   = Rs2Inventory.count(foodType);     // current food in inventory
-            boolean inBossRoom =
-                    Rs2Player.getWorldLocation().distanceTo(BOSS_ROOM) < 20;
+            boolean inBossRoom = WintertodtLocationManager.isInsideGameRoom();
 
             boolean lowAndOutOfFood =
                     (foodCount == 0) &&
@@ -1561,8 +1564,8 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Handle very low warmth emergency (but respect break state)
-        if (gameState.playerWarmth < 20 && !Rs2Inventory.hasItem(config.food().getName())) {
-            Microbot.log("EMERGENCY: Very low warmth without food!");
+        if (gameState.playerWarmth < config.warmthTreshhold() && !Rs2Inventory.hasItem(config.food().getName())) {
+            Microbot.log("EMERGENCY: Very low warmth (" + gameState.playerWarmth + "/" + config.warmthTreshhold() + ") without food!");
             // Unlock break handler for emergency banking
             if (BreakHandlerScript.isLockState()) {
                 BreakHandlerScript.setLockState(false);
@@ -1793,10 +1796,21 @@ public class MKE_WintertodtScript extends Script {
         if (state == State.WALKING_TO_SAFE_SPOT_FOR_BREAK) {
             return;
         }
+        
+        // During emergency banking exit, only handle critical eating and skip state changes
+        if (state == State.BANKING && isInsideWintertodtArea()) {
+            // Only handle critical eating during banking exit
+            if (gameState.playerWarmth <= config.warmthTreshhold()) {
+                handleEating(gameState);
+            }
+            // Skip the rest (dropping items, dodging, camera movements, banking checks)
+            return;
+        }
+        
         // Skip maintenance during breaks except for critical tasks
         if (BreakHandlerScript.isBreakActive() || Rs2AntibanSettings.microBreakActive) {
             // Only handle critical eating during breaks
-            if (gameState.playerWarmth <= 20) {
+            if (gameState.playerWarmth <= config.warmthTreshhold()) {
                 handleEating(gameState);
             }
             return;
@@ -1835,6 +1849,15 @@ public class MKE_WintertodtScript extends Script {
      * @param gameState Current game state
      */
     private void executeMainGameLogic(GameState gameState) {
+        // During emergency banking exit, skip game activities but execute banking logic directly
+        if (state == State.BANKING && isInsideWintertodtArea()) {
+            // Skip round timer updates, reward cart checks, and main game activities
+            // But execute the banking state logic directly to handle the actual exit
+            Microbot.log("Emergency banking exit in progress - executing banking logic directly");
+            executeStateLogic(gameState);
+            return;
+        }
+        
         // Skip main game logic during breaks (except banking/potions)
         if ((BreakHandlerScript.isBreakActive() || Rs2AntibanSettings.microBreakActive) && 
             state != State.BANKING && state != State.GET_CONCOCTIONS && 
@@ -1998,6 +2021,8 @@ public class MKE_WintertodtScript extends Script {
                     previouslyInsideArena = false;
                     waitingForRoundEnd = false; // Reset waiting flag when outside
                 }
+                // Reset exit failure counter on successful exit
+                consecutiveExitFailures = 0;
             } else {
                 previouslyInsideArena = true;
                 
@@ -2011,6 +2036,14 @@ public class MKE_WintertodtScript extends Script {
                 }
                 
                 if (!WintertodtLocationManager.attemptLeaveWintertodt()) {
+                    consecutiveExitFailures++;
+                    if (consecutiveExitFailures >= MAX_EXIT_FAILURES) {
+                        Microbot.log("CRITICAL: Too many exit failures (" + consecutiveExitFailures + ") - emergency logout to prevent infinite loop");
+                        Rs2Player.logout();
+                        shutdown();
+                        return;
+                    }
+                    Microbot.log("Exit attempt failed (" + consecutiveExitFailures + "/" + MAX_EXIT_FAILURES + ") - retrying next tick");
                     return; // still inside → try again next tick
                 }
             }
@@ -2950,14 +2983,14 @@ public class MKE_WintertodtScript extends Script {
                     List<Rs2ItemModel> rejuvenationPotions = Rs2Inventory.getPotions();
                     if (!rejuvenationPotions.isEmpty()) {
                         Rs2Inventory.interact(rejuvenationPotions.get(0), "Drink");
-                        sleepGaussian(300, 100);
+                        sleep(600);
                         plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
                         resetActions = true;
                         return true;
                     }
                 } else {
                     if (Rs2Player.useFood()) {
-                        sleepGaussian(300, 100);
+                        sleep(600);
                         plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
                         Rs2Inventory.dropAll("jug");
                         resetActions = true;
@@ -4958,6 +4991,5 @@ public class MKE_WintertodtScript extends Script {
         
         return false;
     }
-
 
 }

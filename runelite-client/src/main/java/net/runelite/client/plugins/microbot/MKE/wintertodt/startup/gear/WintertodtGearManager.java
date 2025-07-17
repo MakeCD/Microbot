@@ -533,8 +533,8 @@ public class WintertodtGearManager {
             Microbot.log("Only " + warmthItems + "/4 warmth items - consider getting more warm gear");
         }
         
-        if (pyromancerPieces >= 2) {
-            Microbot.log("Pyromancer XP bonus active (" + (pyromancerPieces * 0.25) + "% bonus)");
+        if (pyromancerPieces >= 4) {
+            Microbot.log("Pyromancer XP bonus active ( 2.5% bonus)");
         }
     }
     
