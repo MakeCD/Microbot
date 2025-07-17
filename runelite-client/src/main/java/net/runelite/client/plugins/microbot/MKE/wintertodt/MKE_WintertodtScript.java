@@ -2852,22 +2852,13 @@ public class MKE_WintertodtScript extends Script {
                 
                 int targetSlot = targetSlots[slotIndex];
                 
-                // Check if target slot is empty
-                Rs2ItemModel slotItem = Rs2Inventory.get(targetSlot);
-                boolean slotIsEmpty = (slotItem == null);
-                
                 // Only move if not already in target position
                 if (potion.getSlot() != targetSlot) {
-                    if (slotIsEmpty) {
-                        Microbot.log("Moving " + potion.getName() + " from slot " + potion.getSlot() + " to empty slot " + targetSlot);
-                        
-                        if (Rs2Inventory.moveItemToSlot(potion, targetSlot)) {
-                            sleepUntilTrue(() -> Rs2Inventory.slotContains(targetSlot, potion.getName()), 100, 2000);
-                            sleepGaussian(50, 20); // Small delay between moves for natural behavior
-                        }
-                    } else {
-                        Microbot.log("Target slot " + targetSlot + " is occupied by " + slotItem.getName() + ", skipping to next slot");
-                        continue; // Skip this slot and try the next one
+                    Microbot.log("Moving " + potion.getName() + " from slot " + potion.getSlot() + " to slot " + targetSlot);
+                    
+                    if (Rs2Inventory.moveItemToSlot(potion, targetSlot)) {
+                        sleepUntilTrue(() -> Rs2Inventory.slotContains(targetSlot, potion.getName()), 100, 2000);
+                        sleepGaussian(50, 20); // Small delay between moves for natural behavior
                     }
                 } else {
                     Microbot.log("Potion " + potion.getName() + " already in target slot " + targetSlot);
