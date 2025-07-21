@@ -308,8 +308,8 @@ public class MKE_WintertodtPlugin extends Plugin {
      */
     private void handlePlayerDeath() {
         log.error("=== PLAYER DEATH DETECTED ===");
-        log.error("Current stats - Wins: {}, Losses: {}, Win Rate: {:.1f}%", 
-                  won, lost, getTotalGames() > 0 ? (won * 100.0 / getTotalGames()) : 0);
+        log.error("Current stats - Wins: {}, Losses: {}, Win Rate: {}%", 
+                  won, lost, String.format("%.1f", getWinRate()));
         log.error("Actions taken - Logs: {}, Fletched: {}, Braziers Fixed: {}, Lit: {}", 
                   logsCut, logsFletched, braziersFixed, braziersLit);
         
@@ -357,7 +357,7 @@ public class MKE_WintertodtPlugin extends Plugin {
         if (scriptStarted && getTotalGames() > 0) {
             log.info("=== PERIODIC STATS ===");
             log.info("Runtime: {}", getTimeRunning());
-            log.info("Games - Won: {}, Lost: {}, Win Rate: {:.1f}%", won, lost, getWinRate());
+            log.info("Games - Won: {}, Lost: {}, Win Rate: {}%", won, lost, String.format("%.1f", getWinRate()));
             log.info("Actions - Logs: {}, Fletched: {}, Food: {}, Banking: {}", 
                      logsCut, logsFletched, foodConsumed, timesBanked);
             log.info("Braziers - Fixed: {}, Lit: {}", braziersFixed, braziersLit);
@@ -455,8 +455,8 @@ public class MKE_WintertodtPlugin extends Plugin {
         }
 
         log.info("=== WINTERTODT BOT SHUTDOWN COMPLETED ===");
-        log.info("Final stats - Runtime: {}, Games: {}, Win Rate: {:.1f}%", 
-                 getTimeRunning(), getTotalGames(), getWinRate());
+        log.info("Final stats - Runtime: {}, Games: {}, Win Rate: {}%", 
+                 getTimeRunning(), getTotalGames(), String.format("%.1f", getWinRate()));
     }
 
     /**
