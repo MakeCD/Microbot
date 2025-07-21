@@ -80,11 +80,11 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
  * - Natural break activities and timing patterns
  * - Separate from Break Handler (for longer breaks)
  *
- * @version 2.0.1
+ * @version 2.0.2
  * @author MakeCD
  */
 public class MKE_WintertodtScript extends Script {
-    public static final String version = "2.0.1";
+    public static final String version = "2.0.2";
 
     // State management
     public static State state = State.BANKING;
@@ -1874,7 +1874,16 @@ public class MKE_WintertodtScript extends Script {
         // Update game state
         gameState = analyzeGameState();
 
+        // Handle Wintertodt down FIRST - this transitions to WAITING state
+        if (!gameState.isWintertodtAlive && !gameState.needBanking && 
+            state != State.GET_CONCOCTIONS && state != State.GET_HERBS && 
+            state != State.MAKE_POTIONS && state != State.WALKING_TO_SAFE_SPOT_FOR_BREAK && 
+            !isRewardCartState(state)) {
+            handleWintertodtDown(gameState);
+        }
+
         // Check if we should trigger reward cart looting (only if not already looting)
+        // This now happens AFTER handleWintertodtDown, so state can be properly transitioned to WAITING
         if (!isLootingRewards && shouldLootRewardCart()) {
             startRewardCartLooting();
             return; // Let the reward cart states handle everything
@@ -1916,13 +1925,12 @@ public class MKE_WintertodtScript extends Script {
             return; // Don't continue with main game loop when starting potion creation
         }
 
-        // Determine if we should be doing main loop activities (only if not in potion states or reward cart states)
-        if (!gameState.needBanking && state != State.GET_CONCOCTIONS && state != State.GET_HERBS && state != State.MAKE_POTIONS && state != State.WALKING_TO_SAFE_SPOT_FOR_BREAK && !isRewardCartState(state)) {
-            if (!gameState.isWintertodtAlive) {
-                handleWintertodtDown(gameState);
-            } else {
-                handleMainGameLoop(gameState);
-            }
+        // Handle main game loop (only if Wintertodt is alive and other conditions are met)
+        if (!gameState.needBanking && gameState.isWintertodtAlive && 
+            state != State.GET_CONCOCTIONS && state != State.GET_HERBS && 
+            state != State.MAKE_POTIONS && state != State.WALKING_TO_SAFE_SPOT_FOR_BREAK && 
+            !isRewardCartState(state)) {
+            handleMainGameLoop(gameState);
         }
 
         // Execute state-specific logic - THIS IS CRITICAL
