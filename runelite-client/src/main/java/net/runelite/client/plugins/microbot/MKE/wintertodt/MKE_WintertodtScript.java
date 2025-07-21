@@ -1887,12 +1887,33 @@ public class MKE_WintertodtScript extends Script {
             state != State.GET_CONCOCTIONS &&
             state != State.GET_HERBS &&
             state != State.MAKE_POTIONS) {
+            
+            Microbot.log("EMERGENCY: Need potions for survival - interrupting current activity (state: " + state + ")");
+            
+            // Force unlock state locks for emergency potion creation
+            if (lockState) {
+                setLockState(state, false);
+                Microbot.log("Emergency unlock of state lock for potion creation");
+            }
+            
+            // Stop active fletching/feeding if needed
+            if (fletchingState.isActive()) {
+                fletchingState.stopFletching(FletchingInterruptType.MANUAL_STOP);
+                Microbot.log("Stopped fletching for emergency potion creation");
+            }
+            if (feedingState.isActive()) {
+                feedingState.stopFeeding(FeedingInterruptType.MANUAL_STOP);
+                Microbot.log("Stopped feeding for emergency potion creation");
+            }
+            
             // Unlock break handler if we are starting potion creation
             if (BreakHandlerScript.isLockState()) {
                 BreakHandlerScript.setLockState(false);
                 Microbot.log("Unlocking break handler for potion creation");
             }
+            
             handlePotionCreation(gameState);
+            return; // Don't continue with main game loop when starting potion creation
         }
 
         // Determine if we should be doing main loop activities (only if not in potion states or reward cart states)
