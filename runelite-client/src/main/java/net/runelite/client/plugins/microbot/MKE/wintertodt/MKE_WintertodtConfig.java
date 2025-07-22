@@ -86,8 +86,9 @@ public interface MKE_WintertodtConfig extends Config {
                 "   • Hammer\n" +
                 "   • Tinderbox (only if you don't have Bruma torch)\n\n" +
                 "✅ HEALING METHOD (Choose ONE):\n" +
-                "   🥄 POTIONS (RECOMMENDED): Complete 'Druidic Ritual' quest\n" +
+                "   🥄 POTIONS (RECOMMENDED): Works for ALL players!\n" +
                 "      → Enable 'Rejuvenation Potions' below\n" +
+                "      → No quest requirements needed - bot uses special NPC method!\n" +
                 "      → No food needed - bot crafts potions automatically!\n" +
                 "   🍖 FOOD (Alternative): Have selected food type in bank\n" +
                 "      → Enable 'Food Management' below\n" +
@@ -150,7 +151,7 @@ public interface MKE_WintertodtConfig extends Config {
     @ConfigItem(
             keyName = "RejuvenationPotions",
             name = "⚗️ Enable Rejuvenation Potions (RECOMMENDED)",
-            description = "Use FREE rejuvenation potions for optimal Wintertodt experience! The bot automatically crafts them inside Wintertodt using materials from supply crates. Requires 'Druidic Ritual' quest completion.",
+            description = "Use FREE rejuvenation potions for optimal Wintertodt experience! The bot automatically crafts them inside Wintertodt using materials from supply crates. Works for ALL players - no quest requirements!",
             position = 1,
             section = potionSection
     )
@@ -170,22 +171,25 @@ public interface MKE_WintertodtConfig extends Config {
                 "• More warmth per use than food\n" +
                 "• Takes less inventory space\n" +
                 "• No banking required - bot crafts them inside Wintertodt\n" +
-                "• More efficient and faster gameplay";
+                "• More efficient and faster gameplay\n" +
+                "• Works for ALL players - no quest requirements!";
     }
 
     @ConfigItem(
             keyName = "PotionInfo",
             name = "📋 How It Works",
-            description = "Requirements and automation details for rejuvenation potions",
+            description = "Automation details for rejuvenation potions",
             position = 3,
             section = potionSection
     )
     default String potionInfo() {
-        return "QUEST REQUIREMENT: 'Druidic Ritual' must be completed\n\n" +
+        return "NO QUEST REQUIREMENTS NEEDED!\n\n" +
                 "HOW IT WORKS:\n" +
                 "1. Bot gets concoctions from crate inside wintertodt\n" +
                 "2. Gets bruma herbs from sprouting roots\n" +
-                "3. Automatically crafts rejuvenation potions\n" +
+                "3. Automatically crafts rejuvenation potions using:\n" +
+                "   • Manual combining (if you have Druidic Ritual completed)\n" +
+                "   • Brew'ma NPC method (if you don't have the quest)\n" +
                 "4. Uses potions when warmth gets low\n\n" +
                 "⚠️ DISABLE 'Food Management' below when using potions!";
     }
@@ -270,13 +274,14 @@ public interface MKE_WintertodtConfig extends Config {
                 "• Less warmth per item than potions\n" +
                 "• Takes more inventory space\n" +
                 "• Requires banking trips = less efficient\n" +
-                "• Works immediately without quest requirements\n\n" +
+                "• Works immediately without any requirements\n\n" +
                 "POTION HEALING (Recommended):\n" +
                 "• FREE - crafted from crate materials\n" +
                 "• More warmth per use\n" +
                 "• Less inventory space needed\n" +
                 "• No banking required = more efficient\n" +
-                "• Requires 'Druidic Ritual' quest\n\n" +
+                "• Works for ALL players - no quest requirements!\n" +
+                "• Bot automatically uses best method available\n\n" +
                 "⚠️ DISABLE 'Rejuvenation Potions' above when using food!";
     }
 

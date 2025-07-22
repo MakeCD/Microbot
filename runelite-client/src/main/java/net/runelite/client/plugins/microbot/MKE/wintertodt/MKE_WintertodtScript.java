@@ -15,6 +15,8 @@ import net.runelite.client.plugins.microbot.util.antiban.enums.ActivityIntensity
 import net.runelite.client.plugins.microbot.util.bank.Rs2Bank;
 import net.runelite.client.plugins.microbot.util.camera.Rs2Camera;
 import net.runelite.client.plugins.microbot.util.math.Rs2Random;
+import net.runelite.client.plugins.microbot.util.npc.Rs2Npc;
+import net.runelite.client.plugins.microbot.util.npc.Rs2NpcModel;
 import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
 import net.runelite.client.plugins.microbot.util.gameobject.Rs2GameObject;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
@@ -232,6 +234,9 @@ public class MKE_WintertodtScript extends Script {
     // Object IDs for rejuvenation potion creation
     private static final int CRATE_OBJECT_ID = 29320; // Crate for concoctions
     private static final int SPROUTING_ROOTS_OBJECT_ID = 29315; // Sprouting roots for herbs
+
+    private final WorldPoint BREWMA_NPC_LOCATION = new WorldPoint(1635, 3986, 0);
+    private final WorldPoint BREWMA_NPC_INTERACT_LOCATION = new WorldPoint(1634, 3986, 0);
 
     /**
      * Inner class to hold comprehensive game state information.
@@ -1458,15 +1463,9 @@ public class MKE_WintertodtScript extends Script {
                 usesPotions = config.rejuvenationPotions() && !config.useFoodManagement();
             }
 
-            QuestState druidicRitual = Rs2Player.getQuestState(Quest.DRUIDIC_RITUAL);
-            if (druidicRitual != QuestState.FINISHED && usesPotions) {
-                Microbot.log("Druidic Ritual not finished - defaulting to food (no potions)");
-                usesPotions = false;
-                autoAdjustedPotionUsage = true;
-            }
             
             // Fallback to food if both are enabled (shouldn't happen with proper config)
-            if (config.rejuvenationPotions() && config.useFoodManagement() && druidicRitual == QuestState.FINISHED && !usesPotions) {
+            if (config.rejuvenationPotions() && config.useFoodManagement() && !usesPotions) {
                 Microbot.log("Both potions and food management enabled - defaulting to potions");
                 usesPotions = true;
                 autoAdjustedPotionUsage = true;
@@ -1474,15 +1473,9 @@ public class MKE_WintertodtScript extends Script {
             
             // Fallback to food if neither is enabled
             if (!config.rejuvenationPotions() && !config.useFoodManagement()) {
-                if (druidicRitual == QuestState.FINISHED && !usesPotions) {
-                    Microbot.log("Druidic Ritual finished - defaulting to potions");
-                    usesPotions = true;
-                    autoAdjustedPotionUsage = true;
-                } else if (druidicRitual != QuestState.FINISHED && usesPotions) {
-                    Microbot.log("Neither potions nor food management enabled and Druidic Ritual not finished - defaulting to food");
-                    usesPotions = false;
-                    autoAdjustedPotionUsage = true;
-                }
+                Microbot.log("Neither potions nor food management enabled - defaulting to potions");
+                usesPotions = true;
+                autoAdjustedPotionUsage = true;
             }
             
             String foodType = usesPotions ? "Rejuvenation potion " : config.food().getName();
@@ -2839,18 +2832,32 @@ public class MKE_WintertodtScript extends Script {
                 return;
             }
 
-            // FIXED: Just combine immediately when we have both ingredients - NO ANIMATION CHECKS!
+            // Check if player can manually combine (has completed Druidic Ritual)
+            boolean canManuallyMake = canManuallyMakePotions();
+            
             if (currentConcoctions > 0 && currentHerbs > 0) {
-                int potionsToMake = Math.min(currentConcoctions, currentHerbs);
-                Microbot.log("Starting combination (will make " + potionsToMake + " potions)");
-                if (Rs2Inventory.combineClosest(ItemID.REJUVENATION_POTION_UNF, ItemID.BRUMA_HERB)) {
-                    // Small delay to let the combination process
-                    sleepUntilTrue(() -> Rs2Inventory.count(ItemID.REJUVENATION_POTION_1) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_2) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_3) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_4) >= potionsToMake, 100, 5000);
-                    actionsPerformed++;
-                    Microbot.log("Combination attempted - checking results next tick");
+                if (canManuallyMake) {
+                    // Use manual combining method (preferred if available)
+                    int potionsToMake = Math.min(currentConcoctions, currentHerbs);
+                    Microbot.log("Using manual combination method (will make " + potionsToMake + " potions)");
+                    if (Rs2Inventory.combineClosest(ItemID.REJUVENATION_POTION_UNF, ItemID.BRUMA_HERB)) {
+                        // Small delay to let the combination process
+                        sleepUntilTrue(() -> Rs2Inventory.count(ItemID.REJUVENATION_POTION_1) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_2) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_3) + Rs2Inventory.count(ItemID.REJUVENATION_POTION_4) >= potionsToMake, 100, 5000);
+                        actionsPerformed++;
+                        Microbot.log("Manual combination attempted - checking results next tick");
+                    } else {
+                        Microbot.log("Failed to start manual combining - retrying next tick");
+                        sleepGaussian(1000, 300);
+                    }
                 } else {
-                    Microbot.log("Failed to start combining - retrying next tick");
-                    sleepGaussian(1000, 300);
+                    // Use Brew'ma NPC method
+                    Microbot.log("Player cannot manually combine potions - using Brew'ma NPC method");
+                    if (useBreadmaNpcForPotions(currentConcoctions, currentHerbs)) {
+                        Microbot.log("Brew'ma NPC combination completed");
+                    } else {
+                        Microbot.log("Failed to use Brew'ma NPC - retrying next tick");
+                        sleepGaussian(1000, 300);
+                    }
                 }
             } else {
                 // Shouldn't get here, but handle it
@@ -2867,6 +2874,98 @@ public class MKE_WintertodtScript extends Script {
 
         } catch (Exception e) {
             System.err.println("Error in make potions state: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Check if player can manually make rejuvenation potions
+     * Returns true if player has completed Druidic Ritual
+     */
+    private boolean canManuallyMakePotions() {
+        try {
+            // Check if player has completed Druidic Ritual
+            QuestState druidicRitual = Rs2Player.getQuestState(Quest.DRUIDIC_RITUAL);
+            return druidicRitual == QuestState.FINISHED;
+        } catch (Exception e) {
+            Microbot.log("Error checking druidic ritual, defaulting to NPC method: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Use Brew'ma NPC to convert rejuvenation potions (unf) and herbs into complete potions
+     */
+    private boolean useBreadmaNpcForPotions(int concoctions, int herbs) {
+        try {
+            // Walk to Brew'ma NPC if not nearby
+            if (Rs2Player.getWorldLocation().distanceTo(BREWMA_NPC_LOCATION) > 10) {
+                Microbot.log("Walking to Brew'ma NPC at " + BREWMA_NPC_LOCATION);
+                Rs2Walker.walkTo(BREWMA_NPC_INTERACT_LOCATION);
+                sleepUntilTrue(() -> Rs2Player.getWorldLocation().distanceTo(BREWMA_NPC_LOCATION) <= 10, 100, 10000);
+                return false; // Return false to retry next tick after walking
+            }
+
+            // Find Brew'ma NPC
+            Rs2NpcModel brewmaNpc = Rs2Npc.getNpcInLineOfSight("Brew'ma");
+            if (brewmaNpc == null) {
+                Microbot.log("Could not find Brew'ma NPC - walking closer");
+                Rs2Walker.walkFastCanvas(BREWMA_NPC_INTERACT_LOCATION);
+                return false;
+            }
+
+            // Store counts before interaction
+            int potionsBeforeInteraction = getTotalRejuvenationPotions();
+            int concoctionsBeforeInteraction = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
+            int herbsBeforeInteraction = Rs2Inventory.count(ItemID.BRUMA_HERB);
+
+            Microbot.log("Interacting with Brew'ma NPC to convert " + concoctions + " concoctions and " + herbs + " herbs");
+            
+            // First, select the herb from inventory
+            if (!Rs2Inventory.interact(ItemID.BRUMA_HERB, "Use")) {
+                Microbot.log("Failed to select herb from inventory");
+                return false;
+            }
+            
+            // Wait a moment for the herb to be selected
+            sleepGaussian(300, 100);
+            
+            // Then click on the Brew'ma NPC while herb is selected
+            if (Rs2Npc.interact(brewmaNpc, "Use")) {
+                Microbot.log("Used herb on Brew'ma NPC - waiting for conversion");
+                
+                // Wait for the conversion to complete (should be instant according to user)
+                sleepUntilTrue(() -> {
+                    int currentPotions = getTotalRejuvenationPotions();
+                    int currentConcoctions = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
+                    int currentHerbs = Rs2Inventory.count(ItemID.BRUMA_HERB);
+                    
+                    // Check if conversion happened (more potions, fewer ingredients)
+                    return currentPotions > potionsBeforeInteraction || 
+                           (currentConcoctions < concoctionsBeforeInteraction || currentHerbs < herbsBeforeInteraction);
+                }, 100, 5000);
+
+                // Verify the conversion worked
+                int potionsAfterInteraction = getTotalRejuvenationPotions();
+                int concoctionsAfterInteraction = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
+                int herbsAfterInteraction = Rs2Inventory.count(ItemID.BRUMA_HERB);
+
+                if (potionsAfterInteraction > potionsBeforeInteraction) {
+                    Microbot.log("Brew'ma NPC successfully converted ingredients! Potions: " + 
+                               potionsBeforeInteraction + " -> " + potionsAfterInteraction);
+                    actionsPerformed++;
+                    return true;
+                } else {
+                    Microbot.log("Brew'ma NPC interaction may have failed - no potion increase detected");
+                    return false;
+                }
+            } else {
+                Microbot.log("Failed to use herb on Brew'ma NPC");
+                return false;
+            }
+
+        } catch (Exception e) {
+            Microbot.log("Error using Brew'ma NPC for potions: " + e.getMessage());
+            return false;
         }
     }
 
