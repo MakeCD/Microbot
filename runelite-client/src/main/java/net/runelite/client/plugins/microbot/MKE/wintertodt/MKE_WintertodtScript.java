@@ -83,11 +83,11 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
  * - Natural break activities and timing patterns
  * - Separate from Break Handler (for longer breaks)
  *
- * @version 2.0.3
+ * @version 2.0.4
  * @author MakeCD
  */
 public class MKE_WintertodtScript extends Script {
-    public static final String version = "2.0.3";
+    public static final String version = "2.0.4";
 
     // State management
     public static State state = State.BANKING;
