@@ -4,8 +4,10 @@ import net.runelite.client.config.Config;
 import net.runelite.client.config.ConfigGroup;
 import net.runelite.client.config.ConfigItem;
 import net.runelite.client.config.ConfigSection;
+import net.runelite.client.config.ConfigInformation;
 import net.runelite.client.plugins.microbot.util.misc.Rs2Food;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.Brazier;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.HealingMethod;
 
 /**
  * Configuration interface for the Wintertodt bot plugin.
@@ -13,112 +15,86 @@ import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.Brazier;
  * food management, brazier preferences, and various gameplay options.
  */
 @ConfigGroup("wintertodt")
+@ConfigInformation(
+    "<html>" +
+    "🤖 <b>MKE WINTERTODT BOT - SETUP GUIDE</b><br /><br />" +
+    
+    "🔴 <b>REQUIREMENTS:</b><br />" +
+    "✅ Membership + Firemaking 50+<br />" +
+    "✅ 4+ warm clothing pieces (Pyromancer, Santa, Hunter gear, etc.)<br />" +
+    "✅ Tools in bank: Axe, Knife, Hammer, Tinderbox<br /><br />" +
+    
+    "🥄 <b>HEALING METHODS:</b><br />" +
+    "• <b>Potions (Recommended):</b> FREE, crafted automatically inside Wintertodt<br />" +
+    "• <b>Food:</b> Costs GP, withdrawn from bank automatically<br /><br />" +
+    
+    "🔥 <b>FEATURES:</b><br />" +
+    "• Auto navigation from anywhere<br />" +
+    "• <b>Auto gear optimization - NO manual gearing required!</b><br />" +
+    "• Brazier management & repairs<br />" +
+    "• Fletching & reward collection<br />" +
+    "• Custom break system with AFK/logout<br /><br />" +
+    
+    "🎯 <b>QUICK START:</b> Choose healing method below, configure options, start anywhere! <b>Bot handles all gearing automatically!</b>"
+)
 public interface MKE_WintertodtConfig extends Config {
 
-    // Configuration sections for better organization
+    // Configuration sections
     @ConfigSection(
-            name = "General Settings",
-            description = "General bot behavior and gameplay options",
+            name = "⚙️ General Settings",
+            description = "Core bot functionality and activity preferences",
             position = 0
     )
     String generalSection = "general";
 
     @ConfigSection(
-            name = "🍺 Rejuvenation Potions (RECOMMENDED)",
-            description = "Use FREE rejuvenation potions for healing - automatically crafted inside Wintertodt from supply crates! More efficient than food.",
+            name = "Healing Method",
+            description = "Choose your healing method: Potions (free, recommended) or Food (costs GP)",
             position = 1
     )
-    String potionSection = "potions";
+    String healingSection = "healing";
 
     @ConfigSection(
-            name = "🍖 Food Management (Alternative)",
-            description = "Use regular food for healing - automatically gathered from bank. Less efficient but works without quest requirements.",
+            name = "🍽️ Healing Settings",
+            description = "Settings that apply to both healing methods (potions and food)",
             position = 2
     )
-    String foodSection = "food";
+    String healingSettingsSection = "healingSettings";
 
     @ConfigSection(
-            name = "Brazier Management",
+            name = "🔥 Brazier Management",
             description = "Brazier location and maintenance preferences",
             position = 3
     )
     String brazierSection = "brazier";
 
     @ConfigSection(
-            name = "🛌 Custom Break System",
-            description = "Smart break management with AFK and logout breaks for enhanced anti-detection",
+            name = "🏆 Reward Collection",
+            description = "Automatic reward cart looting when you have enough points",
             position = 4
+    )
+    String rewardSection = "reward";
+
+    @ConfigSection(
+            name = "🛌 Break System",
+            description = "Smart AFK and logout breaks for enhanced anti-detection",
+            position = 5
     )
     String breakSection = "breaks";
 
     @ConfigSection(
-            name = "Advanced Options",
-            description = "Advanced timing and behavior customization",
-            position = 5
+            name = "🎛️ Advanced Options",
+            description = "Timing, antiban, and behavior customization",
+            position = 6
     )
     String advancedSection = "advanced";
 
-    @ConfigSection(
-            name = "🏆 Reward Cart Looting",
-            description = "Automatically collect rewards from the Wintertodt reward cart when you have enough points",
-            position = 6
-    )
-    String rewardCartSection = "rewardCart";
-
-    // General Settings
-    @ConfigItem(
-            keyName = "mke_wintertodt_requirements",
-            name = "⚠️ REQUIREMENTS (READ FIRST!)",
-            description = "Essential requirements that must be met before using this bot",
-            position = 0,
-            section = generalSection
-    )
-    default String MKE_WINTERTODT_REQUIREMENTS() {
-        return "🔴 MANDATORY REQUIREMENTS:\n\n" +
-                "✅ MEMBERSHIP: Must have active membership\n" +
-                "✅ FIREMAKING LEVEL: Minimum level 50 required\n" +
-                "✅ WARM GEAR: At least 4 warm clothing pieces in bank/worn\n" +
-                "   Examples: Pyromancer outfit, Santa outfit, Hunter gear (Larupia/Graahk/Kyatt),\n" +
-                "   Warm gloves, Woolly hat/scarf, Fire cape, Clue hunter gear, Animal costumes\n" +
-                "✅ ESSENTIAL TOOLS in bank/inventory:\n" +
-                "   • Any axe (Bronze axe minimum)\n" +
-                "   • Knife\n" +
-                "   • Hammer\n" +
-                "   • Tinderbox (only if you don't have Bruma torch)\n\n" +
-                "✅ HEALING METHOD (Choose ONE):\n" +
-                "   🥄 POTIONS (RECOMMENDED): Works for ALL players!\n" +
-                "      → Enable 'Rejuvenation Potions' below\n" +
-                "      → No quest requirements needed - bot uses special NPC method!\n" +
-                "      → No food needed - bot crafts potions automatically!\n" +
-                "   🍖 FOOD (Alternative): Have selected food type in bank\n" +
-                "      → Enable 'Food Management' below\n" +
-                "      → Bot will withdraw food automatically\n\n" +
-                "🎯 IF ALL REQUIREMENTS ARE MET:\n" +
-                "You can start this script ANYWHERE and it will handle everything!\n" +
-                "The bot will automatically navigate to Wintertodt, equip optimal gear,\n" +
-                "and manage the entire activity for you.";
-    }
-
-    @ConfigItem(
-            keyName = "wintertodt_guide",
-            name = "Setup Instructions",
-            description = "How to properly set up and use this plugin",
-            position = 1,
-            section = generalSection
-    )
-    default String WINTERTOD_GUIDE() {
-        return "1. Ensure all requirements above are met!\n" +
-                "2. Choose EITHER potions OR food (potions recommended!)\n" +
-                "3. Configure your preferred brazier location\n" +
-                "4. Enable desired options (fletching, fixing, etc.)\n" +
-                "5. Start the plugin anywhere and let it run!";
-    }
-
+    // ==================== GENERAL SETTINGS ====================
     @ConfigItem(
             keyName = "RelightBrazier",
-            name = "Relight Braziers",
+            name = "🔥 Relight Braziers",
             description = "Automatically relight braziers when they go out",
-            position = 2,
+            position = 1,
             section = generalSection
     )
     default boolean relightBrazier() {
@@ -127,9 +103,9 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "FletchRoots",
-            name = "Fletch Roots to Kindling",
-            description = "Convert bruma roots to kindling for better XP and points",
-            position = 3,
+            name = "🔪 Fletch Roots to Kindling",
+            description = "Convert bruma roots to kindling for fletching XP and more points",
+            position = 2,
             section = generalSection
     )
     default boolean fletchRoots() {
@@ -138,158 +114,87 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "FixBrazier",
-            name = "Fix Broken Braziers",
-            description = "Repair broken braziers",
-            position = 4,
+            name = "🔧 Fix Broken Braziers",
+            description = "Repair broken braziers with hammer",
+            position = 3,
             section = generalSection
     )
     default boolean fixBrazier() {
         return true;
     }
 
-    // Rejuvenation Potions Section
+    // ==================== HEALING METHOD ====================
     @ConfigItem(
-            keyName = "RejuvenationPotions",
-            name = "⚗️ Enable Rejuvenation Potions (RECOMMENDED)",
-            description = "Use FREE rejuvenation potions for optimal Wintertodt experience! The bot automatically crafts them inside Wintertodt using materials from supply crates. Works for ALL players - no quest requirements!",
+            keyName = "HealingMethod",
+            name = "Healing Method Selection",
+            description = "<html><b>Choose your preferred healing method:</b><br /><br />" +
+                    "🥄 <b>POTIONS (Recommended):</b><br />" +
+                    "• FREE - crafted from crate materials<br />" +
+                    "• More efficient, no banking needed<br />" +
+                    "• Works for ALL players<br /><br />" +
+                    "🍖 <b>FOOD:</b><br />" +
+                    "• Costs GP - withdrawn from bank<br />" +
+                    "• Less efficient, requires banking<br />" +
+                    "• Works immediately</html>",
             position = 1,
-            section = potionSection
+            section = healingSection
     )
-    default boolean rejuvenationPotions() {
-        return true;
-    }
-
-    @ConfigItem(
-            keyName = "PotionBenefits",
-            name = "✨ Why Potions Are Better",
-            description = "Benefits of using rejuvenation potions over food",
-            position = 2,
-            section = potionSection
-    )
-    default String potionBenefits() {
-        return "• 100% FREE - crafted from crate materials\n" +
-                "• More warmth per use than food\n" +
-                "• Takes less inventory space\n" +
-                "• No banking required - bot crafts them inside Wintertodt\n" +
-                "• More efficient and faster gameplay\n" +
-                "• Works for ALL players - no quest requirements!";
-    }
-
-    @ConfigItem(
-            keyName = "PotionInfo",
-            name = "📋 How It Works",
-            description = "Automation details for rejuvenation potions",
-            position = 3,
-            section = potionSection
-    )
-    default String potionInfo() {
-        return "NO QUEST REQUIREMENTS NEEDED!\n\n" +
-                "HOW IT WORKS:\n" +
-                "1. Bot gets concoctions from crate inside wintertodt\n" +
-                "2. Gets bruma herbs from sprouting roots\n" +
-                "3. Automatically crafts rejuvenation potions using:\n" +
-                "   • Manual combining (if you have Druidic Ritual completed)\n" +
-                "   • Brew'ma NPC method (if you don't have the quest)\n" +
-                "4. Uses potions when warmth gets low\n\n" +
-                "⚠️ DISABLE 'Food Management' below when using potions!";
-    }
-
-    // Food Management Section
-    @ConfigItem(
-            keyName = "UseFoodManagement",
-            name = "🍖 Enable Food Management",
-            description = "Use regular food for healing. The bot will automatically withdraw food from bank when needed. Less efficient than potions but works without quest requirements.",
-            position = 1,
-            section = foodSection
-    )
-    default boolean useFoodManagement() {
-        return true;
+    default HealingMethod healingMethod() {
+        return HealingMethod.POTIONS;
     }
 
     @ConfigItem(
             keyName = "Food",
-            name = "Food Type",
-            description = "Select the type of food to automatically withdraw from bank for healing (only applies to food management)",
+            name = "🍖 Food Type",
+            description = "Type of food to withdraw from bank (only used when Food healing method is selected)",
             position = 2,
-            section = foodSection
+            section = healingSection
     )
     default Rs2Food food() {
         return Rs2Food.SALMON;
     }
 
+    // ==================== HEALING SETTINGS ====================
     @ConfigItem(
             keyName = "Amount",
-            name = "Food Amount",
-            description = "Number of food items to automatically withdraw from bank per trip (applies to both healing methods)",
-            position = 3,
-            section = foodSection
+            name = "💊 Healing Items Per Trip",
+            description = "Number of healing items (potions/food) to carry per trip",
+            position = 0,
+            section = healingSettingsSection
     )
-    default int foodAmount() {
-        return 3;
+    default int healingAmount() {
+        return 2;
     }
 
     @ConfigItem(
             keyName = "MinFood",
-            name = "Minimum Food Threshold",
-            description = "Bot will return to bank when food count drops below this number - safety buffer (applies to both healing methods)",
-            position = 4,
-            section = foodSection
+            name = "📦 Restock Healing Items Threshold",
+            description = "When game round ends, restock healing items if below this amount",
+            position = 1,
+            section = healingSettingsSection
     )
-    default int minFood() {
+    default int minHealingItems() {
         return 2;
     }
 
     @ConfigItem(
             keyName = "Eat at warmth level",
-            name = "Eat at Warmth Level",
-            description = "Consume food/potions when warmth drops to this level (applies to both healing methods)",
-            position = 5,
-            section = foodSection
+            name = "🌡️ Consume at Warmth Level",
+            description = "Use healing items when warmth drops to this or lower",
+            position = 2,
+            section = healingSettingsSection
     )
     default int eatAtWarmthLevel() {
-        return 40;
+        return 45;
     }
 
-    @ConfigItem(
-            keyName = "Warmth Tresshold",
-            name = "Emergency Bank Warmth",
-            description = "Emergency bank if warmth drops this low without food/potions (applies to both healing methods)",
-            position = 6,
-            section = foodSection
-    )
-    default int warmthTreshhold() {
-        return 20;
-    }
 
-    @ConfigItem(
-            keyName = "FoodLimitations",
-            name = "📝 Food vs Potions Comparison",
-            description = "Understanding the differences between food and potion healing methods",
-            position = 7,
-            section = foodSection
-    )
-    default String foodLimitations() {
-        return "FOOD HEALING:\n" +
-                "• Costs GP - bot withdraws from bank automatically\n" +
-                "• Less warmth per item than potions\n" +
-                "• Takes more inventory space\n" +
-                "• Requires banking trips = less efficient\n" +
-                "• Works immediately without any requirements\n\n" +
-                "POTION HEALING (Recommended):\n" +
-                "• FREE - crafted from crate materials\n" +
-                "• More warmth per use\n" +
-                "• Less inventory space needed\n" +
-                "• No banking required = more efficient\n" +
-                "• Works for ALL players - no quest requirements!\n" +
-                "• Bot automatically uses best method available\n\n" +
-                "⚠️ DISABLE 'Rejuvenation Potions' above when using food!";
-    }
 
-    // Brazier Management
+    // ==================== BRAZIER MANAGEMENT ====================
     @ConfigItem(
             keyName = "Brazier",
-            name = "Preferred Brazier",
-            description = "Which brazier to primarily use (affects positioning and efficiency)",
+            name = "🎯 Preferred Brazier Location",
+            description = "Which brazier to primarily use",
             position = 1,
             section = brazierSection
     )
@@ -297,11 +202,45 @@ public interface MKE_WintertodtConfig extends Config {
         return Brazier.SOUTH_EAST;
     }
 
-    // Custom Break System
+    // ==================== REWARD COLLECTION ====================
+    @ConfigItem(
+            keyName = "EnableRewardCartLooting",
+            name = "🏆 Enable Reward Cart Collection",
+            description = "Automatically collect rewards when you have enough points",
+            position = 1,
+            section = rewardSection
+    )
+    default boolean enableRewardCartLooting() {
+        return false;
+    }
+
+    @ConfigItem(
+            keyName = "MinimumRewardsForCollection",
+            name = "📊 Minimum Rewards Threshold",
+            description = "Collect rewards when cart has this many rewards (±variance)",
+            position = 2,
+            section = rewardSection
+    )
+    default int minimumRewardsForCollection() {
+        return 20;
+    }
+
+    @ConfigItem(
+            keyName = "RewardsVariance",
+            name = "🎲 Collection Variance",
+            description = "Random variance (±) added to minimum threshold for natural timing",
+            position = 3,
+            section = rewardSection
+    )
+    default int rewardsVariance() {
+        return 10;
+    }
+
+    // ==================== BREAK SYSTEM ====================
     @ConfigItem(
             keyName = "EnableCustomBreaks",
-            name = "🛌 Enable Custom Break System",
-            description = "Enable smart break management with both AFK and logout breaks for better anti-detection",
+            name = "🛌 Enable Smart Break System",
+            description = "Intelligent AFK and logout breaks for better anti-detection",
             position = 1,
             section = breakSection
     )
@@ -311,8 +250,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "MinBreakInterval",
-            name = "Min Break Interval (minutes)",
-            description = "Minimum time between breaks in minutes",
+            name = "⏰ Min Break Interval (minutes)",
+            description = "Minimum time between breaks",
             position = 2,
             section = breakSection
     )
@@ -322,8 +261,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "MaxBreakInterval",
-            name = "Max Break Interval (minutes)",
-            description = "Maximum time between breaks in minutes",
+            name = "⏰ Max Break Interval (minutes)",
+            description = "Maximum time between breaks",
             position = 3,
             section = breakSection
     )
@@ -333,8 +272,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "LogoutBreakChance",
-            name = "Logout Break Chance (%)",
-            description = "Percentage chance for logout breaks vs AFK breaks (0-100%)",
+            name = "🚪 Logout Break Chance (%)",
+            description = "Percentage chance for logout vs AFK breaks (0-100%)",
             position = 4,
             section = breakSection
     )
@@ -344,8 +283,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "AfkBreakMinDuration",
-            name = "AFK Break Min Duration (minutes)",
-            description = "Minimum duration for AFK breaks (mouse offscreen)",
+            name = "😴 AFK Break Min Duration (minutes)",
+            description = "Minimum AFK break duration (mouse goes offscreen)",
             position = 5,
             section = breakSection
     )
@@ -355,8 +294,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "AfkBreakMaxDuration",
-            name = "AFK Break Max Duration (minutes)",
-            description = "Maximum duration for AFK breaks (mouse offscreen)",
+            name = "😴 AFK Break Max Duration (minutes)",
+            description = "Maximum AFK break duration",
             position = 6,
             section = breakSection
     )
@@ -366,8 +305,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "LogoutBreakMinDuration",
-            name = "Logout Break Min Duration (minutes)",
-            description = "Minimum duration for logout breaks",
+            name = "🚪 Logout Break Min Duration (minutes)",
+            description = "Minimum logout break duration",
             position = 7,
             section = breakSection
     )
@@ -377,8 +316,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "LogoutBreakMaxDuration",
-            name = "Logout Break Max Duration (minutes)",
-            description = "Maximum duration for logout breaks",
+            name = "🚪 Logout Break Max Duration (minutes)",
+            description = "Maximum logout break duration",
             position = 8,
             section = breakSection
     )
@@ -389,7 +328,7 @@ public interface MKE_WintertodtConfig extends Config {
     @ConfigItem(
             keyName = "ForceBreakNow",
             name = "🚨 Force Break Now",
-            description = "Immediately trigger a break when in a safe location",
+            description = "Immediately trigger a break when in safe location",
             position = 9,
             section = breakSection
     )
@@ -397,99 +336,11 @@ public interface MKE_WintertodtConfig extends Config {
         return false;
     }
 
-    @ConfigItem(
-            keyName = "BreakSystemExplanation",
-            name = "📖 How Break System Works",
-            description = "Explanation of the custom break system",
-            position = 10,
-            section = breakSection
-    )
-    default String breakSystemExplanation() {
-        return "🛌 CUSTOM BREAK SYSTEM:\n\n" +
-                "AFK BREAKS (1-6 minutes):\n" +
-                "• Moves mouse offscreen\n" +
-                "• Appears as if you stepped away\n" +
-                "• Character stays logged in\n" +
-                "• Safer and more realistic\n\n" +
-                "LOGOUT BREAKS (5-40 minutes):\n" +
-                "• Logs out completely\n" +
-                "• Longer break periods\n" +
-                "• Simulates real break behavior\n" +
-                "• Better for long-term safety\n\n" +
-                "🎯 SMART TIMING:\n" +
-                "• Only triggers in safe locations\n" +
-                "• Waits for banking/waiting states\n" +
-                "• Randomized intervals and durations\n" +
-                "• Works independently of other break systems";
-    }
-
-    // Reward Cart Looting
-    @ConfigItem(
-            keyName = "EnableRewardCartLooting",
-            name = "🏆 Enable Reward Cart Looting",
-            description = "Automatically collect rewards from the Wintertodt reward cart when you have enough points",
-            position = 1,
-            section = rewardCartSection
-    )
-    default boolean enableRewardCartLooting() {
-        return false;
-    }
-
-    @ConfigItem(
-            keyName = "MinimumRewardsForCollection",
-            name = "Minimum Rewards Threshold",
-            description = "Minimum number of reward cart rewards required before collecting them (with random variance)",
-            position = 2,
-            section = rewardCartSection
-    )
-    default int minimumRewardsForCollection() {
-        return 20;
-    }
-
-    @ConfigItem(
-            keyName = "RewardsVariance",
-            name = "Rewards Threshold Variance",
-            description = "Random variance added/subtracted from minimum rewards (gaussian distribution)",
-            position = 3,
-            section = rewardCartSection
-    )
-    default int rewardsVariance() {
-        return 10;
-    }
-
-    @ConfigItem(
-            keyName = "RewardCartInfo",
-            name = "📋 How Reward Cart Works",
-            description = "Information about the reward cart looting system",
-            position = 4,
-            section = rewardCartSection
-    )
-    default String rewardCartInfo() {
-        return "🏆 REWARD CART LOOTING:\n\n" +
-                "WHEN IT TRIGGERS:\n" +
-                "• When reward cart rewards ≥ (Minimum Rewards ± Random Variance)\n" +
-                "• Tracks rewards from chat message: 'You're now owed X rewards'\n" +
-                "• Only when in safe locations (not during activities)\n" +
-                "• Automatically exits Wintertodt temporarily\n\n" +
-                "WHAT IT DOES:\n" +
-                "1. Exits Wintertodt area\n" +
-                "2. Banks all items for clean inventory\n" +
-                "3. Walks to reward cart (west of bank)\n" +
-                "4. Uses 'Big-search' on reward cart\n" +
-                "5. Collects all available rewards\n" +
-                "6. Banks rewards, updates gear if received from reward cart, and returns to Wintertodt\n\n" +
-                "🎯 SAFETY FEATURES:\n" +
-                "• Only triggers during safe states\n" +
-                "• Automatically detects when no more rewards\n" +
-                "• Returns to normal script after completion\n" +
-                "• Works with both food and potion healing methods\n\n";
-    }
-
-    // Advanced Options
+    // ==================== ADVANCED OPTIONS ====================
     @ConfigItem(
             keyName = "HumanizedTiming",
-            name = "Humanized Timing",
-            description = "Add random delays and variations to actions for more human-like behavior",
+            name = "🎭 Humanized Timing",
+            description = "Add random delays for more human-like behavior",
             position = 1,
             section = advancedSection
     )
@@ -499,8 +350,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "MouseMovements",
-            name = "Random Mouse Movements",
-            description = "Occasionally move mouse randomly while idle for anti-detection",
+            name = "🖱️ Random Mouse Movements",
+            description = "Occasional random mouse movements",
             position = 2,
             section = advancedSection
     )
@@ -510,8 +361,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "CameraMovementFrequency",
-            name = "Random Camera Movement Frequency (seconds)",
-            description = "Minimum time between random camera movements in seconds (0.1% chance per call, increases over time). Higher values = less frequent movements. Set to 0 to disable camera movements entirely.",
+            name = "📹 Camera Movement Frequency",
+            description = "Higher value = less frequent camera movements, lower value = more frequent. Set to 0 to disable.",
             position = 3,
             section = advancedSection
     )
@@ -521,8 +372,8 @@ public interface MKE_WintertodtConfig extends Config {
 
     @ConfigItem(
             keyName = "ShowAntibanOverlay",
-            name = "Show Antiban Overlay",
-            description = "Display antiban information in the overlay (action cooldowns, play style, etc.)",
+            name = "📊 Show Antiban Overlay",
+            description = "Display antiban information in overlay",
             position = 4,
             section = advancedSection
     )

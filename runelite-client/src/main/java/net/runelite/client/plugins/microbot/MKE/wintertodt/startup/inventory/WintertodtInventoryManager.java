@@ -8,6 +8,7 @@ import net.runelite.client.plugins.microbot.util.equipment.Rs2Equipment;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2ItemModel;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.MKE_WintertodtConfig;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.HealingMethod;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtAxeManager;
 
 import java.util.*;
@@ -145,7 +146,7 @@ public class WintertodtInventoryManager {
         }
 
         // Keep food/potions
-        if (config.rejuvenationPotions()) {
+        if (config.healingMethod() == HealingMethod.POTIONS) {
             // Cant transfer potions to bank, so we dont need to keep them
         } else {
             keepItems.add(config.food().getName().toLowerCase());

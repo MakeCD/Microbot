@@ -16,6 +16,7 @@ import net.runelite.client.plugins.PluginDescriptor;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.util.misc.TimeUtils;
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.HealingMethod;
 import net.runelite.client.ui.overlay.OverlayManager;
 
 import javax.inject.Inject;
@@ -417,17 +418,12 @@ public class MKE_WintertodtPlugin extends Plugin {
         log.info("Random mouse movements: {}", config.randomMouseMovements());
         
         // Log healing strategy configuration
-        boolean usesPotions = config.rejuvenationPotions() && !config.useFoodManagement();
-        boolean usesFood = config.useFoodManagement() && !config.rejuvenationPotions();
-        
-        if (usesPotions) {
-            log.info("Healing Strategy: Rejuvenation Potions");
-        } else if (usesFood) {
-            log.info("Healing Strategy: Food ({}), Amount: {}", config.food().getName(), config.foodAmount());
-        } else if (config.rejuvenationPotions() && config.useFoodManagement()) {
-            log.warn("Both healing methods enabled - defaulting to potions if Druidic Ritual is finished ({})", config.food().getName());
+        if (config.healingMethod() == HealingMethod.POTIONS) {
+            log.info("Healing Strategy: Rejuvenation Potions (FREE)");
+        } else if (config.healingMethod() == HealingMethod.FOOD) {
+            log.info("Healing Strategy: Food ({}), Amount: {}", config.food().getName(), config.healingAmount());
         } else {
-            log.warn("No healing method enabled - defaulting to potions if Druidic Ritual is finished ({})", config.food().getName());
+            log.warn("Unknown healing method: {}", config.healingMethod());
         }
         
         log.info("Brazier location: {}", config.brazierLocation());

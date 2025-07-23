@@ -7,6 +7,7 @@ import net.runelite.api.events.StatChanged;
 import net.runelite.api.widgets.Widget;
 import net.runelite.client.plugins.microbot.Microbot;
 import net.runelite.client.plugins.microbot.Script;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.HealingMethod;
 import net.runelite.client.plugins.microbot.breakhandler.BreakHandlerScript;
 import net.runelite.client.plugins.microbot.util.antiban.Rs2Antiban;
 import net.runelite.client.plugins.microbot.util.antiban.Rs2AntibanSettings;
@@ -245,7 +246,6 @@ public class MKE_WintertodtScript extends Script {
         boolean wintertodtRespawning;
         boolean isWintertodtAlive;
         int playerWarmth;
-        boolean playerIsLowWarmth;
         GameObject brazier;
         GameObject brokenBrazier;
         GameObject burningBrazier;
@@ -1237,7 +1237,7 @@ public class MKE_WintertodtScript extends Script {
             Rs2AntibanSettings.naturalMouse = true;
             Rs2AntibanSettings.simulateMistakes = true;
             Rs2AntibanSettings.simulateFatigue = true;
-            Rs2Antiban.setActivityIntensity(ActivityIntensity.MODERATE);
+            Rs2Antiban.setActivityIntensity(ActivityIntensity.HIGH);
             
             // Log antiban configuration
             Microbot.log("=== Antiban Configuration ===");
@@ -1448,7 +1448,6 @@ public class MKE_WintertodtScript extends Script {
             /* ----------------------------------------------------- */
 
             gameState.playerWarmth      = getWarmthLevel();
-            gameState.playerIsLowWarmth = gameState.playerWarmth < config.warmthTreshhold();
 
             // Object detection
             gameState.brazier        = Rs2GameObject.findObject(BRAZIER_29312,
@@ -1460,22 +1459,7 @@ public class MKE_WintertodtScript extends Script {
 
             // Health and food management - determine healing strategy
             if (!autoAdjustedPotionUsage) {
-                usesPotions = config.rejuvenationPotions() && !config.useFoodManagement();
-            }
-
-            
-            // Fallback to food if both are enabled (shouldn't happen with proper config)
-            if (config.rejuvenationPotions() && config.useFoodManagement() && !usesPotions) {
-                Microbot.log("Both potions and food management enabled - defaulting to potions");
-                usesPotions = true;
-                autoAdjustedPotionUsage = true;
-            }
-            
-            // Fallback to food if neither is enabled
-            if (!config.rejuvenationPotions() && !config.useFoodManagement()) {
-                Microbot.log("Neither potions nor food management enabled - defaulting to potions");
-                usesPotions = true;
-                autoAdjustedPotionUsage = true;
+                usesPotions = (config.healingMethod() == HealingMethod.POTIONS);
             }
             
             String foodType = usesPotions ? "Rejuvenation potion " : config.food().getName();
@@ -1492,7 +1476,7 @@ public class MKE_WintertodtScript extends Script {
                 if (gameState.wintertodtRespawning) {
                     // During round break, make potions if we need them
                     gameState.needBanking = false; // Never bank with rejuv potions
-                    gameState.needPotions = foodCount < config.minFood();
+                    gameState.needPotions = foodCount < config.minHealingItems();
                 } else if (inBossRoom) {
                     // During active round, only make potions if we're out AND low warmth
                     gameState.needBanking = false;
@@ -1500,16 +1484,16 @@ public class MKE_WintertodtScript extends Script {
                 } else {
                     // In lobby area with rejuv potions
                     gameState.needBanking = false;
-                    gameState.needPotions = foodCount < config.minFood();
+                    gameState.needPotions = foodCount < config.minHealingItems();
                 }
             } else {
                 // Original banking logic for regular food
                 if (gameState.wintertodtRespawning) {
-                    gameState.needBanking = foodCount < config.minFood();
+                    gameState.needBanking = foodCount < config.minHealingItems();
                 } else if (inBossRoom) {
                     gameState.needBanking = lowAndOutOfFood;
                 } else {
-                    gameState.needBanking = foodCount < config.minFood();
+                    gameState.needBanking = foodCount < config.minHealingItems();
                 }
                 gameState.needPotions = false;
             }
@@ -1556,16 +1540,28 @@ public class MKE_WintertodtScript extends Script {
             return true;
         }
 
-        // Handle very low warmth emergency (but respect break state)
-        if (gameState.playerWarmth < config.warmthTreshhold() && !Rs2Inventory.hasItem(config.food().getName())) {
-            Microbot.log("EMERGENCY: Very low warmth (" + gameState.playerWarmth + "/" + config.warmthTreshhold() + ") without food!");
-            // Unlock break handler for emergency banking
-            if (BreakHandlerScript.isLockState()) {
-                BreakHandlerScript.setLockState(false);
-                Microbot.log("Emergency unlock of break handler for critical banking");
+        // Handle emergency warmth during breaks - eat food or walk to safe spot
+        if ((BreakHandlerScript.isBreakActive() || Rs2AntibanSettings.microBreakActive) && gameState.playerWarmth < 30) {
+            Microbot.log("EMERGENCY: Very low warmth (" + gameState.playerWarmth + ") during break!");
+            
+            // Try emergency eating first if we have food
+            if (Rs2Inventory.hasItem(config.food().getName()) || (usesPotions && !Rs2Inventory.getPotions().isEmpty())) {
+                Microbot.log("Emergency eating during break due to low warmth");
+                if (handleEating(gameState)) {
+                    return true;
+                }
             }
-            changeState(State.BANKING);
-            return true;
+            
+            // If no food or eating failed, try to walk to safe spot (boss room area)
+            WorldPoint playerLocation = Rs2Player.getWorldLocation();
+            if (playerLocation != null && playerLocation.distanceTo(BOSS_ROOM) > 6) {
+                Microbot.log("Emergency walk to safe spot (boss room) during break");
+                Rs2Walker.walkTo(BOSS_ROOM);
+                sleepGaussian(1200, 300);
+                return true;
+            }
+            
+            return false;
         }
 
         // Handle stuck state (no state change for too long) - but don't interfere with breaks
@@ -1793,7 +1789,7 @@ public class MKE_WintertodtScript extends Script {
         // During emergency banking exit, only handle critical eating and skip state changes
         if (state == State.BANKING && isInsideWintertodtArea()) {
             // Only handle critical eating during banking exit
-            if (gameState.playerWarmth <= config.warmthTreshhold()) {
+            if (gameState.playerWarmth <= 30) {
                 handleEating(gameState);
             }
             // Skip the rest (dropping items, dodging, camera movements, banking checks)
@@ -1803,7 +1799,7 @@ public class MKE_WintertodtScript extends Script {
         // Skip maintenance during breaks except for critical tasks
         if (BreakHandlerScript.isBreakActive() || Rs2AntibanSettings.microBreakActive) {
             // Only handle critical eating during breaks
-            if (gameState.playerWarmth <= config.warmthTreshhold()) {
+            if (gameState.playerWarmth <= 30) {
                 handleEating(gameState);
             }
             return;
@@ -1944,7 +1940,7 @@ public class MKE_WintertodtScript extends Script {
         int concoctionCount = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
         int herbCount = Rs2Inventory.count(ItemID.BRUMA_HERB);
         int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
-        int potionsNeeded = config.foodAmount() - currentPotions;
+        int potionsNeeded = config.healingAmount() - currentPotions;
 
         // If we have enough potions, don't do anything
         if (potionsNeeded <= 0) {
@@ -2118,7 +2114,7 @@ public class MKE_WintertodtScript extends Script {
 
             // Check if ready to continue
             String foodType = usesPotions ? "Rejuvenation potion " : config.food().getName();
-            if (Rs2Player.isFullHealth() && Rs2Inventory.hasItemAmount(foodType, config.foodAmount(), false, true)) {
+            if (Rs2Player.isFullHealth() && Rs2Inventory.hasItemAmount(foodType, config.healingAmount(), false, true)) {
                 plugin.setTimesBanked(plugin.getTimesBanked() + 1);
 
                 // Handle break system properly
@@ -2625,12 +2621,12 @@ public class MKE_WintertodtScript extends Script {
             int currentPotions = getTotalRejuvenationPotions();
             int currentConcoctions = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
             int totalHealingItems = currentPotions + currentConcoctions; // What we can actually use
-            int needed = config.foodAmount() - totalHealingItems;
+            int needed = config.healingAmount() - totalHealingItems;
             
-            Microbot.log("CONCOCTIONS: Need " + needed + " more (potions: " + currentPotions + ", concoctions: " + currentConcoctions + ", target: " + config.foodAmount() + ")");
+            Microbot.log("CONCOCTIONS: Need " + needed + " more (potions: " + currentPotions + ", concoctions: " + currentConcoctions + ", target: " + config.healingAmount() + ")");
             
             if (needed <= 0) {
-                Microbot.log("Have enough total healing items (" + totalHealingItems + "/" + config.foodAmount() + "), moving to herbs");
+                Microbot.log("Have enough total healing items (" + totalHealingItems + "/" + config.healingAmount() + "), moving to herbs");
                 changeState(State.GET_HERBS);
                 return;
             }
@@ -2715,11 +2711,11 @@ public class MKE_WintertodtScript extends Script {
             int potionsWeMakeCanMake = Math.min(currentConcoctions, currentHerbs); // Potions we can make right now
             int totalAfterCombining = currentPotions + potionsWeMakeCanMake;
             
-            Microbot.log("HERBS: Currently have " + totalHealingItems + "/" + config.foodAmount() + " healing items");
-            Microbot.log("HERBS: After combining would have " + totalAfterCombining + "/" + config.foodAmount() + " (concoctions: " + currentConcoctions + ", herbs: " + currentHerbs + ")");
+            Microbot.log("HERBS: Currently have " + totalHealingItems + "/" + config.healingAmount() + " healing items");
+            Microbot.log("HERBS: After combining would have " + totalAfterCombining + "/" + config.healingAmount() + " (concoctions: " + currentConcoctions + ", herbs: " + currentHerbs + ")");
             
             // If we already have enough total healing items, go straight to combining
-            if (totalAfterCombining >= config.foodAmount()) {
+            if (totalAfterCombining >= config.healingAmount()) {
                 Microbot.log("Have enough herbs for combining, moving to make potions");
                 changeState(State.MAKE_POTIONS);
                 return;
@@ -2809,24 +2805,24 @@ public class MKE_WintertodtScript extends Script {
             int currentConcoctions = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
             int currentHerbs = Rs2Inventory.count(ItemID.BRUMA_HERB);
             
-            Microbot.log("COMBINING: potions: " + currentPotions + ", concoctions: " + currentConcoctions + ", herbs: " + currentHerbs + ", target: " + config.foodAmount());
+            Microbot.log("COMBINING: potions: " + currentPotions + ", concoctions: " + currentConcoctions + ", herbs: " + currentHerbs + ", target: " + config.healingAmount());
             
             // Check if we have enough potions now
-            if (currentPotions >= config.foodAmount()) {
-                Microbot.log("Have enough rejuvenation potions (" + currentPotions + "/" + config.foodAmount() + "), cleaning up and organizing inventory");
+            if (currentPotions >= config.healingAmount()) {
+                Microbot.log("Have enough rejuvenation potions (" + currentPotions + "/" + config.healingAmount() + "), cleaning up and organizing inventory");
                 organizeRejuvenationPotionsInInventory();
                 changeState(State.ENTER_ROOM);
                 return;
             }
             
             // Check if we need more ingredients
-            if (currentConcoctions <= 0 && currentPotions < config.foodAmount()) {
+            if (currentConcoctions <= 0 && currentPotions < config.healingAmount()) {
                 Microbot.log("Need more concoctions to reach target");
                 changeState(State.GET_CONCOCTIONS);
                 return;
             }
             
-            if (currentHerbs <= 0 && currentConcoctions > 0 && currentPotions < config.foodAmount()) {
+            if (currentHerbs <= 0 && currentConcoctions > 0 && currentPotions < config.healingAmount()) {
                 Microbot.log("Need more herbs to combine");
                 changeState(State.GET_HERBS);
                 return;
@@ -2862,7 +2858,7 @@ public class MKE_WintertodtScript extends Script {
             } else {
                 // Shouldn't get here, but handle it
                 Microbot.log("No valid combinations possible - checking what we need");
-                if (currentPotions >= config.foodAmount()) {
+                if (currentPotions >= config.healingAmount()) {
                     cleanupExtraResources();
                     changeState(State.ENTER_ROOM);
                 } else if (currentConcoctions <= 0) {
@@ -3413,7 +3409,7 @@ public class MKE_WintertodtScript extends Script {
             }
 
             // Check if we have enough food AFTER banking setup
-            if (Rs2Inventory.hasItemAmount(config.food().getName(), config.foodAmount())) {
+            if (Rs2Inventory.hasItemAmount(config.food().getName(), config.healingAmount())) {
                 // We have enough food and tools are set up, ready to continue
                 return true;
             }
@@ -3422,20 +3418,20 @@ public class MKE_WintertodtScript extends Script {
             int currentFoodCount = (int) Rs2Inventory.getInventoryFood().stream().count();
 
             // Check food availability
-            if (!Rs2Bank.hasBankItem(config.food().getName(), config.foodAmount(), true)) {
+            if (!Rs2Bank.hasBankItem(config.food().getName(), config.healingAmount(), true)) {
                 Microbot.showMessage("Insufficient food in bank! Please restock.");
                 Microbot.pauseAllScripts.compareAndSet(false, true);
                 return false;
             }
 
             // Withdraw food
-            int foodNeeded = config.foodAmount() - currentFoodCount;
+            int foodNeeded = config.healingAmount() - currentFoodCount;
             if (foodNeeded > 0) {
                 Rs2Bank.withdrawX(config.food().getId(), foodNeeded);
             }
 
             return sleepUntilTrue(
-                    () -> Rs2Inventory.hasItemAmount(config.food().getName(), config.foodAmount(), false, true),
+                    () -> Rs2Inventory.hasItemAmount(config.food().getName(), config.healingAmount(), false, true),
                     100, 5000
             );
 
@@ -4249,7 +4245,7 @@ public class MKE_WintertodtScript extends Script {
             // If using rejuvenation potions and we don't have enough, we need to get them first
             if (usesPotions) {
                 int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
-                if (currentPotions < config.minFood()) {
+                if (currentPotions < config.minHealingItems()) {
                     Microbot.log("Using rejuvenation potions but don't have enough - need to make them");
                     changeState(State.GET_CONCOCTIONS);
                     return;
@@ -4291,7 +4287,7 @@ public class MKE_WintertodtScript extends Script {
         /* Handle rejuvenation potions - if we need potions and we're using rejuv potions */
         if (usesPotions) {
             int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
-            if (currentPotions < config.minFood()) {
+            if (currentPotions < config.minHealingItems()) {
                 Microbot.log("Need rejuvenation potions - starting potion creation workflow");
                 changeState(State.GET_CONCOCTIONS);
                 return;

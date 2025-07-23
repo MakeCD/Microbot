@@ -9,6 +9,7 @@ import net.runelite.client.plugins.microbot.util.inventory.Rs2ItemModel;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.util.walker.Rs2Walker;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.MKE_WintertodtConfig;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.HealingMethod;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.location.WintertodtLocationManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtGearManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.inventory.WintertodtInventoryManager;
@@ -334,9 +335,9 @@ public class WintertodtStartupManager {
             
             // NEW: Different food checking for rejuvenation potions vs regular food
             int foodCount = getFoodCount();
-            int minRequired = config.rejuvenationPotions() ? 0 : config.minFood(); // Allow 0 potions since we can make them
-            
-            if (config.rejuvenationPotions()) {
+                    int minRequired = (config.healingMethod() == HealingMethod.POTIONS) ? 0 : config.minHealingItems(); // Allow 0 potions since we can make them
+
+        if (config.healingMethod() == HealingMethod.POTIONS) {
                 // With rejuvenation potions, we don't need any in inventory to start
                 // We can make them from the crate and sprouting roots
                 Microbot.log("Using rejuvenation potions - no minimum food requirement (can make potions on demand)");
@@ -355,7 +356,7 @@ public class WintertodtStartupManager {
                 return false;
             }
             
-            if (config.rejuvenationPotions()) {
+            if (config.healingMethod() == HealingMethod.POTIONS) {
                 Microbot.log("Has required tools, using rejuvenation potions (can make on demand), and " + warmGearCount + " warm gear pieces");
             } else {
                 Microbot.log("Has required tools, " + foodCount + " food items, and " + warmGearCount + " warm gear pieces");
@@ -399,7 +400,7 @@ public class WintertodtStartupManager {
      * Gets the count of food items in inventory.
      */
     private int getFoodCount() {
-        if (config.rejuvenationPotions()) {
+        if (config.healingMethod() == HealingMethod.POTIONS) {
             return Rs2Inventory.count("Rejuvenation potion");
         } else {
             return Rs2Inventory.count(config.food().getName());
