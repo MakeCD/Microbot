@@ -199,7 +199,7 @@ public class MKE_WintertodtScript extends Script {
     
     // Exit failure tracking for banking
     private int consecutiveExitFailures = 0;
-    private static final int MAX_EXIT_FAILURES = 5;
+    private static final int MAX_EXIT_FAILURES = 10;
     
     // Mouse and camera movement tracking
     private long lastMouseMovement = 0;
