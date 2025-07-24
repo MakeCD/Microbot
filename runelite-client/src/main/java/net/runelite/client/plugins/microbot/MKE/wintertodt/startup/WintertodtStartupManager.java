@@ -30,7 +30,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
  * decisions about teleportation, banking, and gear optimization.
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 1.0.1
  */
 public class WintertodtStartupManager {
     

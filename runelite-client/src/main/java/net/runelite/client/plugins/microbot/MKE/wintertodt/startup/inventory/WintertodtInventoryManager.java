@@ -32,7 +32,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepGaussian;
  * 4. Axe (if needed and not equipped) - Slot 24
  * 
  * @author MakeCD
- * @version 1.0.0
+ * @version 1.0.1
  */
 public class WintertodtInventoryManager {
     
