@@ -3804,6 +3804,8 @@ public class MKE_WintertodtScript extends Script {
             // Perform the world hop (NOTE: Microbot.hopToWorld() has a bug - returns false even on success)
             Microbot.hopToWorld(targetWorld);
 
+            sleep(1000);
+
             // If the world hop failed, try again (This happens basically every time)
             if (Rs2Player.getWorld() != targetWorld) {
                 Microbot.hopToWorld(targetWorld);
@@ -3817,12 +3819,12 @@ public class MKE_WintertodtScript extends Script {
             boolean hopCompleted = sleepUntilTrue(() -> {
                 int currentWorld = Rs2Player.getWorld();
                 // Success if we reach target world or any other Wintertodt world
-                if (currentWorld == targetWorld) {
+                if (currentWorld == targetWorld && Microbot.isLoggedIn()) {
                     return true;
                 }
-                // Also accept if we ended up on any Wintertodt world (server might redirect us)
+                // Also accept if we ended up on any Wintertodt world
                 for (int wintertodtWorld : wintertodtWorlds) {
-                    if (currentWorld == wintertodtWorld) {
+                    if (currentWorld == wintertodtWorld && Microbot.isLoggedIn()) {
                         return true;
                     }
                 }
@@ -3846,7 +3848,7 @@ public class MKE_WintertodtScript extends Script {
                 boolean retryCompleted = sleepUntilTrue(() -> {
                     int currentWorld = Rs2Player.getWorld();
                     for (int wintertodtWorld : wintertodtWorlds) {
-                        if (currentWorld == wintertodtWorld) {
+                        if (currentWorld == wintertodtWorld && Microbot.isLoggedIn()) {
                             return true;
                         }
                     }
@@ -3876,7 +3878,7 @@ public class MKE_WintertodtScript extends Script {
                 boolean finalCompleted = sleepUntilTrue(() -> {
                     int currentWorld = Rs2Player.getWorld();
                     for (int wintertodtWorld : wintertodtWorlds) {
-                        if (currentWorld == wintertodtWorld) {
+                        if (currentWorld == wintertodtWorld && Microbot.isLoggedIn()) {
                             return true;
                         }
                     }
