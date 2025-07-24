@@ -548,7 +548,7 @@ public class WintertodtBreakManager {
     /**
      * Check if player is in a safe location for breaks
      */
-    private boolean isInSafeLocationForBreak() {
+    public boolean isInSafeLocationForBreak() {
         try {
             WorldPoint playerLocation = Rs2Player.getWorldLocation();
             if (playerLocation == null) return false;

@@ -1020,31 +1020,17 @@ public class MKE_WintertodtScript extends Script {
                 // Pre-execution checks
                 if (!Microbot.isLoggedIn()) {
                     // Only spam logs if we're not in an intentional logout break
-                    if (!WintertodtBreakManager.isLogoutBreakActive()) {
+                    if (!WintertodtBreakManager.isLogoutBreakActive() && !BreakHandlerScript.isBreakActive() && !wasOnBreak) {
                         isInitialized = false;
                         lastStateChange = System.currentTimeMillis(); // Reset on logout
                         Microbot.log("Player logged out - reset initialization flag");
+                    } else {
+                        wasOnBreak = true;
                     }
                     return;
                 }
 
                 if (!super.run()) return;
-                
-                if (shouldPauseForBreaks()) {
-                    if (!Rs2AntibanSettings.actionCooldownActive) {
-                        wasOnBreak = true;
-                    }
-                    return; // Pause script if any break is active
-                }
-
-                if (wasOnBreak) {
-                    lastStateChange = System.currentTimeMillis();
-                    isInitialized = false; // Force re-initialization after any break
-                    worldChecked = false; // Reset world check after break (might be on different world)
-                    resetActionPlanning(); // Clear outdated action plans after break
-                    Microbot.log("Resuming from break, resetting state timer, initialization, world check, and action plan.");
-                    wasOnBreak = false;
-                }
 
                 // Performance monitoring
                 long loopStartTime = System.currentTimeMillis();
@@ -1063,12 +1049,40 @@ public class MKE_WintertodtScript extends Script {
                     }
                 }
 
+                if (breakManager.isInSafeLocationForBreak()) {
+                    if (BreakHandlerScript.isLockState()) {
+                        BreakHandlerScript.setLockState(false);
+                        Microbot.log("Unlocking break handler");
+                        sleep(500);
+                    }
+                } else {
+                    if (!BreakHandlerScript.isLockState()) {
+                        BreakHandlerScript.setLockState(true);
+                        Microbot.log("Locking break handler");
+                    }
+                }
+
                 // Gather current game state
                 GameState gameState = analyzeGameState();
 
                 // Emergency situation handling
                 if (handleEmergencySituations(gameState)) {
                     return;
+                }
+
+                if (shouldPauseForBreaks()) {
+                    if (!Rs2AntibanSettings.actionCooldownActive) {
+                        wasOnBreak = true;
+                    }
+                    return; // Pause script if any break is active
+                }
+
+                if (wasOnBreak) {
+                    lastStateChange = System.currentTimeMillis();
+                    worldChecked = false; // Reset world check after break (might be on different world)
+                    resetActionPlanning(); // Clear outdated action plans after break
+                    Microbot.log("Resuming from break, resetting state timer, world check, and action plan.");
+                    wasOnBreak = false;
                 }
 
                 // Human-like behaviors
@@ -1311,14 +1325,6 @@ public class MKE_WintertodtScript extends Script {
             // Initial state
             state = State.BANKING;
 
-            // Reset break system state (handled by WintertodtBreakManager)
-            
-            // Ensure break handler is not locked initially
-            if (BreakHandlerScript.isLockState()) {
-                BreakHandlerScript.setLockState(false);
-                Microbot.log("Reset break handler lock state during initialization");
-            }
-
             // Validate equipment setup
             if (!validateEquipmentSetup()) {
                 return false;
@@ -1541,7 +1547,7 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Handle emergency warmth during breaks - eat food or walk to safe spot
-        if ((BreakHandlerScript.isBreakActive() || Rs2AntibanSettings.microBreakActive) && gameState.playerWarmth < 30) {
+        if ((BreakHandlerScript.isBreakActive() || WintertodtBreakManager.isBreakActive() || Rs2AntibanSettings.microBreakActive) && gameState.playerWarmth < 30) {
             Microbot.log("EMERGENCY: Very low warmth (" + gameState.playerWarmth + ") during break!");
             
             // Try emergency eating first if we have food
@@ -1823,10 +1829,6 @@ public class MKE_WintertodtScript extends Script {
 
         // Banking check (respect break handler state) - BUT NOT for rejuvenation potions
         if (gameState.needBanking && !usesPotions) {
-            if (BreakHandlerScript.isLockState()) {
-                BreakHandlerScript.setLockState(false);
-                Microbot.log("Unlocking break handler for emergency banking");
-            }
             setLockState(State.BANKING, false);
             changeState(State.BANKING);
         }
@@ -1902,12 +1904,6 @@ public class MKE_WintertodtScript extends Script {
             if (feedingState.isActive()) {
                 feedingState.stopFeeding(FeedingInterruptType.MANUAL_STOP);
                 Microbot.log("Stopped feeding for emergency potion creation");
-            }
-            
-            // Unlock break handler if we are starting potion creation
-            if (BreakHandlerScript.isLockState()) {
-                BreakHandlerScript.setLockState(false);
-                Microbot.log("Unlocking break handler for potion creation");
             }
             
             handlePotionCreation(gameState);
@@ -2136,12 +2132,6 @@ public class MKE_WintertodtScript extends Script {
                     return;
                 }
 
-                // Unlock break handler state after successful banking
-                if (BreakHandlerScript.isLockState()) {
-                    BreakHandlerScript.setLockState(false);
-                    Microbot.log("Unlocking break handler state after banking");
-                }
-
                 changeState(State.ENTER_ROOM);
             }
 
@@ -2168,12 +2158,6 @@ public class MKE_WintertodtScript extends Script {
                     Rs2Player.waitForWalking();
                 }
             } else {
-                // Set break handler lock when entering active game state
-                if (!BreakHandlerScript.isLockState() && !BreakHandlerScript.isBreakActive()) {
-                    BreakHandlerScript.setLockState(true);
-                    Microbot.log("Locking break handler state for active gameplay");
-                    lastStateChange = System.currentTimeMillis();
-                }
                 changeState(State.WAITING);
             }
 
@@ -2867,7 +2851,6 @@ public class MKE_WintertodtScript extends Script {
                     changeState(State.GET_HERBS);
                 }
             }
-
         } catch (Exception e) {
             System.err.println("Error in make potions state: " + e.getMessage());
         }
@@ -3274,6 +3257,11 @@ public class MKE_WintertodtScript extends Script {
         try {
             WorldPoint brazierLocation = config.brazierLocation().getBRAZIER_LOCATION();
             double distance = Rs2Player.getWorldLocation().distanceTo(brazierLocation);
+
+            if (!BreakHandlerScript.isLockState()) {
+                BreakHandlerScript.setLockState(true);
+                Microbot.log("Locking break handler");
+            }
 
             if (distance > 8) {
                 Rs2Walker.walkTo(brazierLocation, 3);
@@ -4452,7 +4440,6 @@ public class MKE_WintertodtScript extends Script {
         // Reset brazier priority flag
         shouldPriorizeBrazierAtStart = false;
 
-        setLockState(state, false);      // release any state locks
         resetActions = true;             // force re-evaluation on next loop
     }
     /* ═══════════════════════════════════════════════════════════════ */
