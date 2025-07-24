@@ -224,7 +224,7 @@ public class MKE_WintertodtScript extends Script {
     private static final String REWARD_CART_NO_REWARDS_TEXT = "There are no rewards here for you.";
     private static final String REWARD_CART_FINISHED_TEXT = "You think you've taken as much as you're owed from the reward";
     private static final int REWARD_CART_WIDGET_PARENT = 229;
-    private static final int REWARD_CART_WIDGET_CHILD = 1;
+    private static final int REWARD_CART_WIDGET_CHILD = 3;
 
     /* Default round length (ms) used until we have real data */
     private static final long DEFAULT_ROUND_DURATION_MS = 250_000;
