@@ -386,8 +386,10 @@ public class WintertodtStartupManager {
         boolean hasFireTool = Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) ||
                              Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) ||
                              Rs2Inventory.hasItem(ItemID.TINDERBOX);
+
+        inventoryManager.determineKnifeToUse();
                              
-        boolean hasKnife = !config.fletchRoots() || Rs2Inventory.hasItem(ItemID.KNIFE);
+        boolean hasKnife = !config.fletchRoots() || Rs2Inventory.hasItem(WintertodtInventoryManager.knifeToUse);
         boolean hasHammer = !config.fixBrazier() || Rs2Inventory.hasItem(ItemID.HAMMER);
         
         Microbot.log("Tools check - Axe (" + axeDecision.getAxeName() + "): " + hasAxe + 

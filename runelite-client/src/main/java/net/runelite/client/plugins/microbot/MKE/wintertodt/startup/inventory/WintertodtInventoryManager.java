@@ -56,6 +56,8 @@ public class WintertodtInventoryManager {
         ItemID.IRON_AXE,
         ItemID.BRONZE_AXE
     );
+
+    public static int knifeToUse = ItemID.KNIFE;
     
     public WintertodtInventoryManager(MKE_WintertodtConfig config) {
         this.config = config;
@@ -86,6 +88,8 @@ public class WintertodtInventoryManager {
             // Get automatic axe decision
             WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
             
+            determineKnifeToUse();
+
             // Deposit unnecessary items first
             depositUnnecessaryItems(axeDecision);
 
@@ -136,9 +140,16 @@ public class WintertodtInventoryManager {
         List<String> keepItems = new ArrayList<>();
         
         // Always keep tools if they are already present
-        keepItems.add("knife");
         keepItems.add("hammer");
         keepItems.add("tinderbox");
+
+        if (WintertodtInventoryManager.knifeToUse == ItemID.FLETCHING_KNIFE) {
+            keepItems.add("fletching knife");
+        }
+
+        if (WintertodtInventoryManager.knifeToUse == ItemID.KNIFE) {
+            keepItems.add("knife");
+        }
 
         // Keep axe if it is in inventory
         if (axeDecision.shouldKeepInInventory()) {
@@ -156,6 +167,14 @@ public class WintertodtInventoryManager {
         Rs2Bank.depositAllExcept(keepItems.toArray(new String[0]));
         sleepGaussian(600, 200); // Wait for deposits to process
         inventorySetupLog.add("Inventory cleaned successfully.");
+    }
+
+    public void determineKnifeToUse() {
+        if (Rs2Inventory.hasItem(ItemID.FLETCHING_KNIFE) || Rs2Bank.hasBankItem(ItemID.FLETCHING_KNIFE, 1)) {
+            knifeToUse = ItemID.FLETCHING_KNIFE;
+        } else {
+            knifeToUse = ItemID.KNIFE;
+        }
     }
     
     /**
@@ -177,14 +196,14 @@ public class WintertodtInventoryManager {
         if (!handleFireTool()) {
             return false;
         }
-        
+
         // Handle knife if fletching enabled
-            if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
-            if (!Rs2Bank.withdrawX(ItemID.KNIFE, 1)) {
+            if (config.fletchRoots() && !Rs2Inventory.hasItem(knifeToUse)) {
+            if (!Rs2Bank.withdrawX(knifeToUse, 1)) {
                 inventorySetupLog.add("Failed to get knife for fletching");
                 return false;
             }
-            inventorySetupLog.add("🔪 Acquired knife for fletching");
+            inventorySetupLog.add("Acquired knife for fletching");
             }
             
         // Handle hammer if fixing enabled
@@ -193,7 +212,7 @@ public class WintertodtInventoryManager {
                 inventorySetupLog.add("Failed to get hammer for fixing");
                 return false;
             }
-            inventorySetupLog.add("🔨 Acquired hammer for fixing");
+            inventorySetupLog.add("Acquired hammer for fixing");
         }
         
         return true;
@@ -282,8 +301,8 @@ public class WintertodtInventoryManager {
         WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
         
         // Move knife to optimal slot (always bottom-right)
-            if (Rs2Inventory.hasItem(ItemID.KNIFE)) {
-                moveItemToSlot(ItemID.KNIFE, KNIFE_SLOT, "knife to bottom-right corner");
+            if (Rs2Inventory.hasItem(knifeToUse)) {
+                moveItemToSlot(knifeToUse, KNIFE_SLOT, "knife to bottom-right corner");
             }
             
         // Move hammer next to knife if available
@@ -347,7 +366,7 @@ public class WintertodtInventoryManager {
         Microbot.log("Tool Layout:");
         
         // Check knife in slot 27
-        Rs2ItemModel knifeItem = Rs2Inventory.get(ItemID.KNIFE);
+        Rs2ItemModel knifeItem = Rs2Inventory.get(knifeToUse);
         if (knifeItem != null && knifeItem.getSlot() == KNIFE_SLOT) {
             Microbot.log("  Slot 27: Knife ✓");
         }

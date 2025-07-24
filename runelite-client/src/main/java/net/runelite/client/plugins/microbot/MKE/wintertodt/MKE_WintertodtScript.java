@@ -949,7 +949,7 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Check if we have a knife
-        if (!Rs2Inventory.hasItem(ItemID.KNIFE)) {
+        if (!Rs2Inventory.hasItem(WintertodtInventoryManager.knifeToUse)) {
             System.out.println("Fletching enabled but no knife found in inventory");
             return false;
         }
@@ -1403,7 +1403,7 @@ public class MKE_WintertodtScript extends Script {
      */
     private boolean validateInventorySetup() {
         // Check for required tools based on configuration
-        if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
+        if (config.fletchRoots() && !Rs2Inventory.hasItem(WintertodtInventoryManager.knifeToUse)) {
             Microbot.log("Fletching enabled but no knife in inventory - this is okay, will get one from bank");
         }
 
@@ -2405,11 +2405,11 @@ public class MKE_WintertodtScript extends Script {
                 navigateToBrazier();
 
                 // Keep knife in slot-27 optimisation
-                Rs2ItemModel knife = Rs2Inventory.get("knife");
+                Rs2ItemModel knife = Rs2Inventory.get(WintertodtInventoryManager.knifeToUse);
                 if (knife != null && knife.getSlot() != 27) {
                     sleepGaussian(GAME_TICK_LENGTH * 2, 200);
                     if (Rs2Inventory.moveItemToSlot(knife, 27)) {
-                        sleepUntilTrue(() -> Rs2Inventory.slotContains(27, "knife"), 100, 5000);
+                        sleepUntilTrue(() -> Rs2Inventory.slotContains(27, WintertodtInventoryManager.knifeToUse), 100, 5000);
                     }
                 }
 
@@ -2431,7 +2431,7 @@ public class MKE_WintertodtScript extends Script {
 
                     lastHoveredRoot = null;
                 } else {
-                    if (Rs2Inventory.combineClosest(ItemID.KNIFE, ItemID.BRUMA_ROOT)) {
+                    if (Rs2Inventory.combineClosest(WintertodtInventoryManager.knifeToUse, ItemID.BRUMA_ROOT)) {
                         fletchingStarted = true;
                     }
                 }
@@ -2452,7 +2452,7 @@ public class MKE_WintertodtScript extends Script {
 
             /* Pre-select knife and hover when we have many roots */
             if (rootCount > knifePreselectThreshold && !isKnifeSelected() && gameState.burningBrazier != null) {
-                Rs2Inventory.interact(ItemID.KNIFE, "Use");
+                Rs2Inventory.interact(WintertodtInventoryManager.knifeToUse, "Use");
                 sleepGaussian(120, 40);
 
                 lastHoveredRoot = null;
@@ -3225,7 +3225,7 @@ public class MKE_WintertodtScript extends Script {
      */
     private void dropUnnecessaryItems() {
         try {
-            // Drop knife if fletching is disabled
+            // Drop knife if fletching is disabled - Here we only drop normal knife, we will not drop Fletching Knife
             if (!config.fletchRoots() && Rs2Inventory.hasItem(ItemID.KNIFE)) {
                 sleepGaussian(300, 100);
                 Rs2Inventory.drop(ItemID.KNIFE);
@@ -4369,7 +4369,7 @@ public class MKE_WintertodtScript extends Script {
     private boolean isKnifeSelected()
     {
         return Rs2Inventory.isItemSelected()
-               && Rs2Inventory.getSelectedItemId() == ItemID.KNIFE;
+               && Rs2Inventory.getSelectedItemId() == WintertodtInventoryManager.knifeToUse;
     }
 
     public static void deselectSelectedItem()
@@ -4695,7 +4695,15 @@ public class MKE_WintertodtScript extends Script {
 
         // Determine the list of essential items to keep
         WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-        List<String> keepItems = new ArrayList<>(Arrays.asList("hammer", "tinderbox", "knife"));
+        List<String> keepItems = new ArrayList<>(Arrays.asList("hammer", "tinderbox"));
+
+        if (WintertodtInventoryManager.knifeToUse == ItemID.FLETCHING_KNIFE) {
+            keepItems.add("fletching knife");
+        }
+
+        if (WintertodtInventoryManager.knifeToUse == ItemID.KNIFE) {
+            keepItems.add("knife");
+        }
 
         if (usesPotions) {
             keepItems.add("Rejuvenation potion");
