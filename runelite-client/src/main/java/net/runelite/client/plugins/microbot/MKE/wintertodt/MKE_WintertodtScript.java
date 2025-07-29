@@ -3075,7 +3075,7 @@ public class MKE_WintertodtScript extends Script {
             setLockState(State.BURN_LOGS, false);
             return false;
         }
-        changeState(State.BURN_LOGS, true);
+        changeState(State.BURN_LOGS, false);  // Don't lock - allows natural state transitions
         return true;
     }
 
