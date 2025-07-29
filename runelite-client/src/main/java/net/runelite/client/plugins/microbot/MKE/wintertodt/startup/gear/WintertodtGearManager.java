@@ -12,6 +12,7 @@ import net.runelite.client.plugins.microbot.util.inventory.Rs2Inventory;
 import net.runelite.client.plugins.microbot.util.inventory.Rs2ItemModel;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.MKE_WintertodtConfig;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.inventory.WintertodtInventoryManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -322,9 +323,6 @@ public class WintertodtGearManager {
                 equipGearItem(entry.getValue());
             }
             
-            // Setup inventory tools
-            setupInventoryTools();
-            
             Microbot.log("Optimal gear equipped successfully!");
             return true;
             
@@ -393,7 +391,7 @@ public class WintertodtGearManager {
      */
     private boolean shouldPreserveTool(int itemId, int slot, WintertodtAxeManager.AxeDecision axeDecision) {
         // Preserve knife in slot 27 (fletching)
-        if (itemId == ItemID.KNIFE && slot == 27 && config.fletchRoots()) {
+        if (itemId == WintertodtInventoryManager.knifeToUse && slot == 27 && config.fletchRoots()) {
             return true;
         }
         
@@ -415,53 +413,6 @@ public class WintertodtGearManager {
         }
         
         return false;
-    }
-    
-    /**
-     * Sets up inventory tools based on configuration and gear decisions.
-     */
-    private void setupInventoryTools() {
-        try {
-            Microbot.log("Setting up inventory tools...");
-            
-            WintertodtAxeManager.AxeDecision axeDecision = WintertodtAxeManager.determineOptimalAxeSetup();
-            
-            // Setup axe in inventory if needed
-            if (!axeDecision.shouldEquipAxe() && !Rs2Inventory.hasItem(axeDecision.getAxeId())) {
-                withdrawTool(axeDecision.getAxeId(), "axe for inventory");
-            }
-            
-            // Setup knife if fletching enabled
-            if (config.fletchRoots() && !Rs2Inventory.hasItem(ItemID.KNIFE)) {
-                withdrawTool(ItemID.KNIFE, "knife for fletching");
-            }
-            
-            // Setup hammer if fixing enabled
-            if (config.fixBrazier() && !Rs2Inventory.hasItem(ItemID.HAMMER)) {
-                withdrawTool(ItemID.HAMMER, "hammer for repairs");
-            }
-            
-            // Setup tinderbox if no bruma torch equipped
-            if (!Rs2Equipment.isWearing(ItemID.BRUMA_TORCH) && 
-                !Rs2Equipment.isWearing(ItemID.BRUMA_TORCH_OFFHAND) &&
-                !Rs2Inventory.hasItem(ItemID.TINDERBOX)) {
-                withdrawTool(ItemID.TINDERBOX, "tinderbox for lighting");
-            }
-            
-        } catch (Exception e) {
-            Microbot.log("Error setting up inventory tools: " + e.getMessage());
-        }
-    }
-    
-    /**
-     * Withdraws a tool if available in bank.
-     */
-    private void withdrawTool(int itemId, String description) {
-        if (Rs2Bank.hasItem(itemId)) {
-            Rs2Bank.withdrawOne(itemId);
-            sleepUntilTrue(() -> Rs2Inventory.hasItem(itemId), 100, 3000);
-            Microbot.log("Withdrew " + description);
-        }
     }
     
     /**

@@ -169,7 +169,7 @@ public class WintertodtInventoryManager {
         inventorySetupLog.add("Inventory cleaned successfully.");
     }
 
-    public void determineKnifeToUse() {
+    public static void determineKnifeToUse() {
         if (Rs2Inventory.hasItem(ItemID.FLETCHING_KNIFE) || Rs2Bank.hasBankItem(ItemID.FLETCHING_KNIFE, 1)) {
             knifeToUse = ItemID.FLETCHING_KNIFE;
         } else {

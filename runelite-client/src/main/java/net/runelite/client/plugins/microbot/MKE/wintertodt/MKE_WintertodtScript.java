@@ -1935,7 +1935,7 @@ public class MKE_WintertodtScript extends Script {
         // Determine what we need and start the appropriate state
         int concoctionCount = Rs2Inventory.count(ItemID.REJUVENATION_POTION_UNF);
         int herbCount = Rs2Inventory.count(ItemID.BRUMA_HERB);
-        int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
+        int currentPotions = getTotalRejuvenationPotions();
         int potionsNeeded = config.healingAmount() - currentPotions;
 
         // If we have enough potions, don't do anything
@@ -2570,7 +2570,7 @@ public class MKE_WintertodtScript extends Script {
     /**
      * Gets total count of rejuvenation potions (all dose variations)
      */
-    private static int getTotalRejuvenationPotions() {
+    public static int getTotalRejuvenationPotions() {
         return Rs2Inventory.count("Rejuvenation potion (1)") + 
                Rs2Inventory.count("Rejuvenation potion (2)") + 
                Rs2Inventory.count("Rejuvenation potion (3)") + 
@@ -2795,6 +2795,14 @@ public class MKE_WintertodtScript extends Script {
             if (currentPotions >= config.healingAmount()) {
                 Microbot.log("Have enough rejuvenation potions (" + currentPotions + "/" + config.healingAmount() + "), cleaning up and organizing inventory");
                 organizeRejuvenationPotionsInInventory();
+
+                // Unlock break handler if it's locked
+                if (BreakHandlerScript.isLockState()) {
+                    BreakHandlerScript.setLockState(false);
+                    Microbot.log("Unlocking break handler for a second");
+                    sleep(1000);
+                }
+
                 changeState(State.ENTER_ROOM);
                 return;
             }
@@ -4234,7 +4242,7 @@ public class MKE_WintertodtScript extends Script {
             
             // If using rejuvenation potions and we don't have enough, we need to get them first
             if (usesPotions) {
-                int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
+                int currentPotions = getTotalRejuvenationPotions();
                 if (currentPotions < config.minHealingItems()) {
                     Microbot.log("Using rejuvenation potions but don't have enough - need to make them");
                     changeState(State.GET_CONCOCTIONS);
@@ -4276,7 +4284,7 @@ public class MKE_WintertodtScript extends Script {
 
         /* Handle rejuvenation potions - if we need potions and we're using rejuv potions */
         if (usesPotions) {
-            int currentPotions = Rs2Inventory.count("Rejuvenation potion ");
+            int currentPotions = getTotalRejuvenationPotions();
             if (currentPotions < config.minHealingItems()) {
                 Microbot.log("Need rejuvenation potions - starting potion creation workflow");
                 changeState(State.GET_CONCOCTIONS);

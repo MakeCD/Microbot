@@ -14,6 +14,7 @@ import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.location.Wint
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtGearManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.inventory.WintertodtInventoryManager;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.startup.gear.WintertodtAxeManager;
+import net.runelite.client.plugins.microbot.MKE.wintertodt.MKE_WintertodtScript;
 
 import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
 
@@ -195,6 +196,7 @@ public class WintertodtStartupManager {
             return false;
         }
     }
+    
     
     /**
      * Phase 3: Inventory Setup
@@ -403,7 +405,7 @@ public class WintertodtStartupManager {
      */
     private int getFoodCount() {
         if (config.healingMethod() == HealingMethod.POTIONS) {
-            return Rs2Inventory.count("Rejuvenation potion");
+            return MKE_WintertodtScript.getTotalRejuvenationPotions();
         } else {
             return Rs2Inventory.count(config.food().getName());
         }
