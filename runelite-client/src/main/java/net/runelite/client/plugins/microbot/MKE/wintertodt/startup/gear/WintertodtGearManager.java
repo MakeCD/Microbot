@@ -26,7 +26,7 @@ import static net.runelite.client.plugins.microbot.util.Global.sleepUntilTrue;
  * the best available gear based on player's access and skill levels.
  * 
  * @author MakeCD
- * @version 2.0.1
+ * @version 2.0.2
  */
 public class WintertodtGearManager {
     
