@@ -499,7 +499,7 @@
 							<includes>
 								<include>net/runelite/client/plugins/microbot/MKE/wintertodt/**</include>
 							</includes>
-							<finalName>MKE-Wintertodt-Plugin-2.0.6</finalName>
+							<finalName>MKE-Wintertodt-Plugin-2.0.7</finalName>
 							<archive>
 								<manifest>
 									<addClasspath>true</addClasspath>
