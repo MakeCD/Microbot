@@ -3730,8 +3730,6 @@ public class MKE_WintertodtScript extends Script {
         } catch (Exception e) {
             Microbot.log("Error checking/hopping to Wintertodt world: " + e.getMessage());
             e.printStackTrace();
-            // On error, stop script and logout
-            stopScriptAndLogout();
             return false;
         }
     }
@@ -3760,6 +3758,16 @@ public class MKE_WintertodtScript extends Script {
 
             // Check if bank is open
             if (Rs2Bank.isOpen()) {
+                return false;
+            }
+
+            // check if we are logged in
+            if (!Microbot.isLoggedIn()) {
+                return false;
+            }
+
+            // Check if break is active
+            if (BreakHandlerScript.isBreakActive() || WintertodtBreakManager.isLogoutBreakActive()) {
                 return false;
             }
             

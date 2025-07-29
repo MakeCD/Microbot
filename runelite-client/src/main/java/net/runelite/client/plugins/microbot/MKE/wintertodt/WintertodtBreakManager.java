@@ -247,16 +247,7 @@ public class WintertodtBreakManager {
      */
     private void startLogoutBreak() {
         // Check if AutoLoginPlugin is currently enabled and disable it
-        if (isAutoLoginPluginAvailable()) {
-            AutoLoginPlugin autoLoginPlugin = (AutoLoginPlugin) Microbot.getPlugin(AutoLoginPlugin.class.getName());
-            if (autoLoginPlugin != null && Microbot.isPluginEnabled(autoLoginPlugin.getClass())) {
-                Microbot.getClientThread().runOnSeperateThread(() -> {
-                    Microbot.stopPlugin(autoLoginPlugin);
-                    return true;
-                });
-                Microbot.log("Disabled AutoLoginPlugin for logout break");
-            }
-        }
+        disableAutoLoginPlugin();
         
         int duration = Rs2Random.between(config.logoutBreakMinDuration(), config.logoutBreakMaxDuration());
         breakTimeRemaining = duration * 60; // convert to seconds
@@ -569,6 +560,26 @@ public class WintertodtBreakManager {
     }
     
     /**
+     * Disables the AutoLoginPlugin if available and enabled
+     */
+    private void disableAutoLoginPlugin() {
+        try {
+            if (isAutoLoginPluginAvailable()) {
+                AutoLoginPlugin autoLoginPlugin = (AutoLoginPlugin) Microbot.getPlugin(AutoLoginPlugin.class.getName());
+                if (autoLoginPlugin != null && Microbot.isPluginEnabled(autoLoginPlugin.getClass())) {
+                    Microbot.getClientThread().runOnSeperateThread(() -> {
+                        Microbot.stopPlugin(autoLoginPlugin);
+                        return true;
+                    });
+                    Microbot.log("AutoLoginPlugin disabled after use");
+                }
+            }
+        } catch (Exception e) {
+            Microbot.log("Failed to disable AutoLoginPlugin: " + e.getMessage());
+        }
+    }
+    
+    /**
      * Handles successful login after a logout break
      */
     private void onSuccessfulLogin() {
@@ -577,6 +588,9 @@ public class WintertodtBreakManager {
             Thread.sleep(10000);
             
             Microbot.log("Login successful - checking if we're on a Wintertodt world");
+            
+            // Disable AutoLoginPlugin after successful login
+            disableAutoLoginPlugin();
             
             Microbot.log("Break system resuming normal operation");
 
