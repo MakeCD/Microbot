@@ -125,6 +125,7 @@ public class MKE_WintertodtScript extends Script {
     private boolean startupCompleted = false;
     private Random random = new Random();
     private boolean wasOnBreak = false;
+    private boolean wasOnBreakHandlerBreak = false;
     private boolean worldChecked = false; // Track if we've already checked/hopped to Wintertodt world
 
     // Wintertodt round timer tracking
@@ -1009,7 +1010,7 @@ public class MKE_WintertodtScript extends Script {
         mainScheduledFuture = scheduledExecutorService.scheduleWithFixedDelay(() -> {
             try {
                 // Update break manager BEFORE login check so logout breaks can end
-                if (breakManager != null && breakManager.update()) {
+                if (!wasOnBreakHandlerBreak && breakManager != null && breakManager.update()) {
                     if (Microbot.isLoggedIn()) {
                         setLockState(state, false); // Force unlock current state
                         changeState(State.WALKING_TO_SAFE_SPOT_FOR_BREAK);
@@ -1024,6 +1025,9 @@ public class MKE_WintertodtScript extends Script {
                         isInitialized = false;
                         lastStateChange = System.currentTimeMillis(); // Reset on logout
                         Microbot.log("Player logged out - reset initialization flag");
+                    } else if (BreakHandlerScript.isBreakActive()){
+                        wasOnBreak = true;
+                        wasOnBreakHandlerBreak = true;
                     } else {
                         wasOnBreak = true;
                     }
@@ -1049,13 +1053,7 @@ public class MKE_WintertodtScript extends Script {
                     }
                 }
 
-                if (breakManager.isInSafeLocationForBreak()) {
-                    if (BreakHandlerScript.isLockState()) {
-                        BreakHandlerScript.setLockState(false);
-                        Microbot.log("Unlocking break handler");
-                        sleep(500);
-                    }
-                } else {
+                if (!breakManager.isInSafeLocationForBreak()) {
                     if (!BreakHandlerScript.isLockState()) {
                         BreakHandlerScript.setLockState(true);
                         Microbot.log("Locking break handler");
@@ -1078,11 +1076,20 @@ public class MKE_WintertodtScript extends Script {
                 }
 
                 if (wasOnBreak) {
+                    Microbot.log("Resuming from break");
+                    if (wasOnBreakHandlerBreak) {
+                        Microbot.log("Sleeping for 10 seconds to ensure client is fully loaded");
+                        sleep(10000);
+                        wasOnBreakHandlerBreak = false;
+                    } else {
+                        sleep(2000);
+                    }
                     lastStateChange = System.currentTimeMillis();
                     worldChecked = false; // Reset world check after break (might be on different world)
                     resetActionPlanning(); // Clear outdated action plans after break
                     Microbot.log("Resuming from break, resetting state timer, world check, and action plan.");
                     wasOnBreak = false;
+                    return;
                 }
 
                 // Human-like behaviors
@@ -1918,7 +1925,7 @@ public class MKE_WintertodtScript extends Script {
             handleMainGameLoop(gameState);
         }
 
-        // Execute state-specific logic - THIS IS CRITICAL
+        // Execute state-specific logic
         executeStateLogic(gameState);
     }
 
@@ -2091,8 +2098,11 @@ public class MKE_WintertodtScript extends Script {
                     return; // open animation in progress – continue once open
                 }
 
-                // At this point the bank is open → run the usual gear/inventory setup helpers
-                checkAndUpgradeGear();          // make sure best gear is equipped / withdrawn
+                // At this point the bank is open → run the usual gear/inventory setup
+                if (!checkAndUpgradeGear()) {
+                    Microbot.log("Gear setup failed for rejuvenation potion mode");
+                    return;
+                }
 
                 // All done – close the bank again so we can continue
                 Rs2Bank.closeBank();
@@ -2101,11 +2111,19 @@ public class MKE_WintertodtScript extends Script {
                 sleepUntilTrue(() -> !Rs2Bank.isOpen(), 100, 3000);
 
                 Microbot.log("Rejuvenation potion gear/tool setup completed - proceeding to potion creation");
+
+                // Handle break opportunity before starting potion creation
+                if (handleBreakOpportunity()) {
+                    return; // Break started, exit function
+                }
+
                 // Proceed with the potion-creation workflow
                 changeState(State.GET_CONCOCTIONS);
                 return;
             }
 
+            // Execute banking: gear/tools setup + food withdrawal
+            // Returns false if we need to wait for an action to complete
             if (!executeBankingLogic()) return;
 
             // Check if ready to continue
@@ -2113,11 +2131,6 @@ public class MKE_WintertodtScript extends Script {
             if (Rs2Player.isFullHealth() && Rs2Inventory.hasItemAmount(foodType, config.healingAmount(), false, true)) {
                 plugin.setTimesBanked(plugin.getTimesBanked() + 1);
 
-                // Handle break system properly
-                if (shouldTriggerBreak()) {
-                    handleBreakTrigger();
-                    return;
-                }
                 
                 // Handle force break trigger from config
                 if (config.forceBreakNow() && breakManager != null) {
@@ -2130,6 +2143,11 @@ public class MKE_WintertodtScript extends Script {
                     breakManager.forceBreak(breakType);
                     Microbot.log("Force break triggered from config - type: " + breakType.getName());
                     return;
+                }
+
+                // Handle break opportunity - returns true if break started
+                if (handleBreakOpportunity()) {
+                    return; // Break started, exit function
                 }
 
                 changeState(State.ENTER_ROOM);
@@ -2796,11 +2814,9 @@ public class MKE_WintertodtScript extends Script {
                 Microbot.log("Have enough rejuvenation potions (" + currentPotions + "/" + config.healingAmount() + "), cleaning up and organizing inventory");
                 organizeRejuvenationPotionsInInventory();
 
-                // Unlock break handler if it's locked
-                if (BreakHandlerScript.isLockState()) {
-                    BreakHandlerScript.setLockState(false);
-                    Microbot.log("Unlocking break handler for a second");
-                    sleep(1000);
+                // Handle break opportunity after completing potion preparation
+                if (handleBreakOpportunity()) {
+                    return; // Break started, exit function
                 }
 
                 changeState(State.ENTER_ROOM);
@@ -3137,7 +3153,6 @@ public class MKE_WintertodtScript extends Script {
                                .distanceTo(config.brazierLocation().getBRAZIER_LOCATION());
         if (dist > CHOPPING_RADIUS) {
             navigateToBrazier();           // walk closer before planning chop
-            return false;                  // do NOT switch state this tick
         }
 
         // --- Plan a new run if we don't have one ---
@@ -3358,31 +3373,23 @@ public class MKE_WintertodtScript extends Script {
     }
 
     /**
-     * Handles the banking logic including rejuvenation potions and regular food.
-     *
-     * @return true if banking completed successfully
+     * Handles the banking logic for food and supplies.
+     * 
+     * Flow:
+     * 1. Walk to bank (if needed)
+     * 2. Open bank (if needed) 
+     * 3. Setup gear + tools via checkAndUpgradeGear() [includes inventoryManager.setupInventory()]
+     * 4. Handle food withdrawal and healing
+     * 
+     * Returns false when waiting for an action to complete, true when banking is done.
      */
     private boolean executeBankingLogic() {
-        try {
-            return handleRegularBankingLogic();
-        } catch (Exception e) {
-            System.err.println("Error in banking logic: " + e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Handles regular banking for food and supplies.
-     *
-     * @return true if banking completed successfully
-     */
-    private boolean handleRegularBankingLogic() {
         try {
             // Navigate to bank first
             if (Rs2Player.getWorldLocation().distanceTo(BANK_LOCATION) > 6) {
                 Rs2Walker.walkTo(BANK_LOCATION);
                 Rs2Player.waitForWalking();
-                return true; // Continue next tick
+                return false; // Wait for walking to complete
             }
 
             // Prevent bug that causes bot to not being able to wear items in bank by adding inventory open command first
@@ -3391,48 +3398,68 @@ public class MKE_WintertodtScript extends Script {
             }
 
             // Open bank
-            Rs2Bank.useBank();
-            if (!Rs2Bank.isOpen()) return true;
+            if (!Rs2Bank.isOpen()) {
+                Rs2Bank.useBank();
+                return false; // Wait for bank to open
+            }
 
-            // ALWAYS check and upgrade gear when banking, then set up inventory
-            checkAndUpgradeGear();
-            inventoryManager.setupInventory();
+            // Setup gear and tools (this already calls inventoryManager.setupInventory())
+            if (!checkAndUpgradeGear()) {
+                return false; // Gear setup failed
+            }
 
-            // Heal up if needed AFTER we have access to food
-            if (!Rs2Player.isFullHealth() && Rs2Inventory.hasItem(config.food().getName(), false)) {
+            // Handle food and healing
+            return handleFoodAndHealing();
+
+        } catch (Exception e) {
+            System.err.println("Error in banking logic: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Handles food withdrawal and healing logic.
+     */
+    private boolean handleFoodAndHealing() {
+        try {
+            String foodName = config.food().getName();
+            int requiredAmount = config.healingAmount();
+
+            // Heal up if needed and we have food
+            if (!Rs2Player.isFullHealth() && Rs2Inventory.hasItem(foodName, false)) {
                 eatAt(99);
-                return true;
+                return false; // Wait for healing to complete
             }
 
-            // Check if we have enough food AFTER banking setup
-            if (Rs2Inventory.hasItemAmount(config.food().getName(), config.healingAmount())) {
-                // We have enough food and tools are set up, ready to continue
-                return true;
+            // Check if we already have enough food
+            if (Rs2Inventory.hasItemAmount(foodName, requiredAmount)) {
+                return true; // Banking complete
             }
 
-            // Count current food
-            int currentFoodCount = (int) Rs2Inventory.getInventoryFood().stream().count();
-
-            // Check food availability
-            if (!Rs2Bank.hasBankItem(config.food().getName(), config.healingAmount(), true)) {
+            // Check food availability in bank
+            if (!Rs2Bank.hasBankItem(foodName, requiredAmount, true)) {
                 Microbot.showMessage("Insufficient food in bank! Please restock.");
                 Microbot.pauseAllScripts.compareAndSet(false, true);
                 return false;
             }
 
-            // Withdraw food
-            int foodNeeded = config.healingAmount() - currentFoodCount;
+            // Calculate and withdraw needed food
+            int currentFoodCount = (int) Rs2Inventory.getInventoryFood().stream().count();
+            int foodNeeded = requiredAmount - currentFoodCount;
+            
             if (foodNeeded > 0) {
                 Rs2Bank.withdrawX(config.food().getId(), foodNeeded);
+                // Wait for withdrawal to complete
+                return sleepUntilTrue(
+                    () -> Rs2Inventory.hasItemAmount(foodName, requiredAmount, false, true),
+                    100, 5000
+                );
             }
 
-            return sleepUntilTrue(
-                    () -> Rs2Inventory.hasItemAmount(config.food().getName(), config.healingAmount(), false, true),
-                    100, 5000
-            );
+            return true; // No food needed
 
         } catch (Exception e) {
-            System.err.println("Error in regular banking logic: " + e.getMessage());
+            System.err.println("Error in food and healing logic: " + e.getMessage());
             return false;
         }
     }
@@ -3525,8 +3552,6 @@ public class MKE_WintertodtScript extends Script {
             return true;
         }
         
-
-
         return false;
     }
 
@@ -3544,6 +3569,7 @@ public class MKE_WintertodtScript extends Script {
             
             // If break handler has a break active, respect it
             if (BreakHandlerScript.isBreakActive()) {
+                wasOnBreakHandlerBreak = true;
                 Microbot.log("Break handler break active, pausing script");
                 return;
             }
@@ -3551,6 +3577,55 @@ public class MKE_WintertodtScript extends Script {
         } catch (Exception e) {
             System.err.println("Error handling break trigger: " + e.getMessage());
             e.printStackTrace();
+        }
+    }
+
+    /**
+     * Standardized break opportunity handler.
+     * 
+     * This function should be called at safe points where breaks are allowed to start.
+     * It handles all the standard break preparation steps:
+     * 1. Unlocks break handler if locked
+     * 2. Waits briefly for break system to process
+     * 3. Checks if breaks should trigger
+     * 4. Handles break trigger if needed
+     * 
+     * @return true if a break has started (caller should return immediately), 
+     *         false if no break started (safe to continue)
+     */
+    private boolean handleBreakOpportunity() {
+        try {
+            // Unlock break handler if it's locked to allow breaks to start
+            if (BreakHandlerScript.isLockState()) {
+                BreakHandlerScript.setLockState(false);
+                Microbot.log("Unlocking break handler for break opportunity");
+                sleep(1000); // Give it a moment to unlock
+            }
+
+            // Check if breaks should trigger and handle if needed
+            if (shouldTriggerBreak()) {
+                handleBreakTrigger();
+                return true; // Break started, caller should return immediately
+            }
+
+            // Update break manager
+            if (breakManager != null) {
+                breakManager.update();
+                sleep(200);
+            }
+
+            // Check if breaks should trigger and handle if needed
+            if (shouldTriggerBreak()) {
+                handleBreakTrigger();
+                return true; // Break started, caller should return immediately
+            }
+            
+            return false; // No break started, safe to continue
+            
+        } catch (Exception e) {
+            System.err.println("Error in break opportunity handler: " + e.getMessage());
+            e.printStackTrace();
+            return false; // On error, assume no break and continue
         }
     }
 
@@ -4931,7 +5006,8 @@ public class MKE_WintertodtScript extends Script {
         }
 
         // Pause if universal antiban has paused all scripts
-        if (Rs2AntibanSettings.universalAntiban && Microbot.pauseAllScripts.get()) {
+        if (Microbot.pauseAllScripts.get()) {
+            Microbot.log("Script is paused.");
             return true;
         }
 

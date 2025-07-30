@@ -8,8 +8,11 @@ import net.runelite.client.plugins.microbot.util.math.Rs2Random;
 import net.runelite.client.plugins.microbot.util.player.Rs2Player;
 import net.runelite.client.plugins.microbot.MKE.wintertodt.enums.State;
 import net.runelite.client.plugins.microbot.util.security.Login;
+import net.runelite.client.plugins.microbot.util.widget.Rs2Widget;
 import net.runelite.client.plugins.microbot.accountselector.AutoLoginPlugin;
 import net.runelite.client.ui.ClientUI;
+
+import static net.runelite.client.plugins.microbot.util.Global.sleep;
 
 import java.awt.Point;
 import java.time.Duration;
@@ -279,7 +282,7 @@ public class WintertodtBreakManager {
                 Rs2Player.logout();
                 
                 // Wait a moment and check if logout was successful
-                Thread.sleep(2000);
+                sleep(2000);
                 
                 if (!Microbot.isLoggedIn()) {
                     Microbot.log("Logout successful on attempt " + attempt);
@@ -290,18 +293,13 @@ public class WintertodtBreakManager {
                 
                 // Wait a bit before retrying (except on last attempt)
                 if (attempt < maxAttempts) {
-                    Thread.sleep(3000);
+                    sleep(3000);
                 }
                 
             } catch (Exception e) {
                 Microbot.log("Error during logout attempt " + attempt + ": " + e.getMessage());
                 if (attempt < maxAttempts) {
-                    try {
-                        Thread.sleep(3000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    sleep(3000);
                 }
             }
         }
@@ -420,6 +418,7 @@ public class WintertodtBreakManager {
                 
                 if (Microbot.isLoggedIn()) {
                     Microbot.log("Player already logged in during auto login attempt " + attempt);
+                    sleep(20000);
                     return true;
                 }
                 
@@ -429,16 +428,12 @@ public class WintertodtBreakManager {
                 // Wait for login to complete (up to 60 seconds)
                 long loginStart = System.currentTimeMillis();
                 while (!Microbot.isLoggedIn() && System.currentTimeMillis() - loginStart < 60000) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    sleep(1000);
                 }
                 
                 if (Microbot.isLoggedIn()) {
                     Microbot.log("Successfully logged in using AutoLoginPlugin on attempt " + attempt);
+                    sleep(20000);
                     return true;
                 }
                 
@@ -446,18 +441,13 @@ public class WintertodtBreakManager {
                 
                 // Wait before retry (except on last attempt)
                 if (attempt < maxAttempts) {
-                    Thread.sleep(5000);
+                    sleep(5000);
                 }
                 
             } catch (Exception e) {
                 Microbot.log("Error during AutoLogin attempt " + attempt + ": " + e.getMessage());
                 if (attempt < maxAttempts) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    sleep(5000);
                 }
             }
         }
@@ -475,6 +465,7 @@ public class WintertodtBreakManager {
                 
                 if (Microbot.isLoggedIn()) {
                     Microbot.log("Player already logged in during manual login attempt " + attempt);
+                    sleep(20000);
                     return true;
                 }
                 
@@ -493,17 +484,13 @@ public class WintertodtBreakManager {
                 
                 // Wait for login to complete (up to 30 seconds)
                 long loginStart = System.currentTimeMillis();
-                while (!Microbot.isLoggedIn() && System.currentTimeMillis() - loginStart < 30000) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                while (!Microbot.isLoggedIn() && !Rs2Widget.isWidgetVisible(378,0) && System.currentTimeMillis() - loginStart < 30000) {
+                    sleep(1000);
                 }
                 
                 if (Microbot.isLoggedIn()) {
                     Microbot.log("Successfully logged in using manual login on attempt " + attempt);
+                    sleep(20000);
                     return true;
                 }
                 
@@ -511,18 +498,13 @@ public class WintertodtBreakManager {
                 
                 // Wait before retry (except on last attempt)
                 if (attempt < maxAttempts) {
-                    Thread.sleep(5000);
+                    sleep(5000);
                 }
                 
             } catch (Exception e) {
                 Microbot.log("Error during manual login attempt " + attempt + ": " + e.getMessage());
                 if (attempt < maxAttempts) {
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    sleep(5000);
                 }
             }
         }
@@ -584,11 +566,8 @@ public class WintertodtBreakManager {
      */
     private void onSuccessfulLogin() {
         try {
-            // Small delay to ensure login is fully processed
-            Thread.sleep(10000);
-            
-            Microbot.log("Login successful - checking if we're on a Wintertodt world");
-            
+            Microbot.log("Login detected");
+
             // Disable AutoLoginPlugin after successful login
             disableAutoLoginPlugin();
             
@@ -629,12 +608,7 @@ public class WintertodtBreakManager {
                 // Wait up to 15 seconds for hop to complete
                 long startTime = System.currentTimeMillis();
                 while (Rs2Player.getWorld() != targetWorld && System.currentTimeMillis() - startTime < 15000) {
-                    try {
-                        Thread.sleep(1000);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        break;
-                    }
+                    sleep(1000);
                 }
                 
                 if (Rs2Player.getWorld() == targetWorld) {
