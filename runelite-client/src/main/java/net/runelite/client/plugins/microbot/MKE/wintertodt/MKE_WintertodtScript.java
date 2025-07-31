@@ -2596,6 +2596,16 @@ public class MKE_WintertodtScript extends Script {
     }
 
     /**
+     * Gets total count of actual rejuvenation potion doses
+     */
+    public static int getTotalRejuvenationDoses() {
+        return (Rs2Inventory.count("Rejuvenation potion (1)") * 1) + 
+               (Rs2Inventory.count("Rejuvenation potion (2)") * 2) + 
+               (Rs2Inventory.count("Rejuvenation potion (3)") * 3) + 
+               (Rs2Inventory.count("Rejuvenation potion (4)") * 4);
+    }
+
+    /**
      * Simplified - Handles getting concoctions from the crate
      */
     private void handleGetConcoctionsState(GameState gameState) {
@@ -3111,21 +3121,59 @@ public class MKE_WintertodtScript extends Script {
                 }
 
                 if (usesPotions) {
-                    List<Rs2ItemModel> rejuvenationPotions = Rs2Inventory.getPotions();
-                    if (!rejuvenationPotions.isEmpty()) {
+                    // Retry logic for potion consumption with dose verification
+                    int maxRetries = 3;
+                    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                        List<Rs2ItemModel> rejuvenationPotions = Rs2Inventory.getPotions();
+                        if (rejuvenationPotions.isEmpty()) {
+                            break; // No potions available
+                        }
+
+                        // Count total doses before drinking
+                        int dosesBeforeDrinking = getTotalRejuvenationDoses();
+                        
+                        // Attempt to drink potion
                         Rs2Inventory.interact(rejuvenationPotions.get(0), "Drink");
-                        sleep(600);
-                        plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
-                        resetActions = true;
-                        return true;
+                        Rs2Inventory.waitForInventoryChanges(2000);
+                        
+                        // Count total doses after drinking
+                        int dosesAfterDrinking = getTotalRejuvenationDoses();
+                        int dosesConsumed = dosesBeforeDrinking - dosesAfterDrinking;
+                        
+                        if (dosesConsumed >= 1) {
+                            // Successfully consumed at least 1 dose
+                            plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
+                            resetActions = true;
+                            fletchingState.stopFletching(FletchingInterruptType.PLAYER_ATE);
+                            return true;
+                        } else {
+                            // Failed to consume, retry if attempts remaining
+                            System.out.println("Failed to consume potion dose on attempt " + attempt + 
+                                             ". Doses before: " + dosesBeforeDrinking + 
+                                             ", after: " + dosesAfterDrinking);
+                            if (attempt < maxRetries) {
+                                sleepGaussian(500, 200); // Small delay before retry
+                            }
+                        }
                     }
                 } else {
-                    if (Rs2Player.useFood()) {
-                        sleep(600);
-                        plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
-                        Rs2Inventory.dropAll("jug");
-                        resetActions = true;
-                        return true;
+                    // Retry logic for regular food consumption
+                    int maxRetries = 3;
+                    for (int attempt = 1; attempt <= maxRetries; attempt++) {
+                        if (Rs2Player.useFood()) {
+                            Rs2Inventory.waitForInventoryChanges(2000);
+                            plugin.setFoodConsumed(plugin.getFoodConsumed() + 1);
+                            Rs2Inventory.dropAll("jug");
+                            resetActions = true;
+                            fletchingState.stopFletching(FletchingInterruptType.PLAYER_ATE);
+                            return true;
+                        } else {
+                            // Failed to eat food, retry if attempts remaining
+                            System.out.println("Failed to consume food on attempt " + attempt);
+                            if (attempt < maxRetries) {
+                                sleepGaussian(500, 200); // Small delay before retry
+                            }
+                        }
                     }
                 }
             } catch (Exception e) {
