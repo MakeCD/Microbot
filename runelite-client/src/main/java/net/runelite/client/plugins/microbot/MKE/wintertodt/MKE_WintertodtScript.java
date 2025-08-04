@@ -89,6 +89,7 @@ import static net.runelite.client.plugins.microbot.util.player.Rs2Player.eatAt;
 public class MKE_WintertodtScript extends Script {
     public static final String version = "2.0.9";
 
+    
     // State management
     public static State state = State.BANKING;
     public static boolean resetActions = false;
@@ -2934,13 +2935,20 @@ public class MKE_WintertodtScript extends Script {
             Microbot.log("Interacting with Brew'ma NPC to convert " + concoctions + " concoctions and " + herbs + " herbs");
             
             // First, select the herb from inventory
-            if (!Rs2Inventory.interact(ItemID.BRUMA_HERB, "Use")) {
+            if (Rs2Inventory.getSelectedItemId() != ItemID.BRUMA_HERB && !Rs2Inventory.interact(ItemID.BRUMA_HERB, "Use")) {
                 Microbot.log("Failed to select herb from inventory");
                 return false;
             }
-            
+
             // Wait a moment for the herb to be selected
-            sleepGaussian(300, 100);
+            sleepGaussian(900, 200);
+
+            if (Rs2Inventory.getSelectedItemId() != ItemID.BRUMA_HERB) {
+                Microbot.log("Failed to select herb from inventory, retrying...");
+                return false;
+            }
+
+            Microbot.log("Selected herb from inventory");
             
             // Then click on the Brew'ma NPC while herb is selected
             if (Rs2Npc.interact(brewmaNpc, "Use")) {
